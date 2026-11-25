@@ -17,6 +17,7 @@ const FeatureImportanceReqSchema = z.object({
   importancePct: z.number().min(0).max(100),
   direction: z.enum(["increase", "decrease"]),
   directionLabel: z.string().max(60),
+  insightText: z.string().max(160).optional(),
 });
 
 const CustomerDriverReqSchema = z.object({

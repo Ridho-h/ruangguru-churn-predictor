@@ -47,6 +47,7 @@ export interface FeatureImportanceItem {
   importancePct: number;
   direction: "increase" | "decrease";
   directionLabel: string;
+  insightText?: string;
 }
 
 export interface CustomerDriver {

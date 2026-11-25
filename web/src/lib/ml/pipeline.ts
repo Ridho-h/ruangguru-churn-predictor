@@ -73,7 +73,15 @@ function computeGlobalFeatureImportance(
 ): FeatureImportanceItem[] {
   // Use max-magnitude per original column so multi-category one-hot columns
   // neither inflate importance nor cancel opposite-sign dummies to zero.
-  const grouped = new Map<string, { maxAbs: number; dominantSigned: number }>();
+  const grouped = new Map<
+    string,
+    {
+      maxAbs: number;
+      dominantSigned: number;
+      kind: "numeric" | "categorical";
+      dominantCategory?: string;
+    }
+  >();
 
   for (let j = 0; j < prep.featureMeta.length; j += 1) {
     const meta = prep.featureMeta[j];
@@ -81,7 +89,12 @@ function computeGlobalFeatureImportance(
     const absW = Math.abs(w);
     const prev = grouped.get(meta.sourceColumn);
     if (!prev || absW > prev.maxAbs) {
-      grouped.set(meta.sourceColumn, { maxAbs: absW, dominantSigned: w });
+      grouped.set(meta.sourceColumn, {
+        maxAbs: absW,
+        dominantSigned: w,
+        kind: meta.kind,
+        dominantCategory: meta.categoryValue,
+      });
     }
   }
 
@@ -92,13 +105,23 @@ function computeGlobalFeatureImportance(
     .map(([feature, stats]) => {
       const direction: "increase" | "decrease" =
         stats.dominantSigned >= 0 ? "increase" : "decrease";
+      const insightText =
+        stats.kind === "categorical" && stats.dominantCategory
+          ? direction === "increase"
+            ? `Nilai "${stats.dominantCategory}" paling kuat memicu churn`
+            : `Nilai "${stats.dominantCategory}" paling kuat menahan churn`
+          : direction === "increase"
+            ? "Makin tinggi nilainya, makin besar risiko churn"
+            : "Makin tinggi nilainya, makin kecil risiko churn";
+
       return {
         feature,
         label: formatFeatureLabel(feature),
         importancePct: Number(((stats.maxAbs / totalAbs) * 100).toFixed(1)),
         direction,
         directionLabel:
-          direction === "increase" ? "Meningkatkan Risiko" : "Menurunkan Risiko",
+          direction === "increase" ? "Pemicu Churn" : "Penahan Churn",
+        insightText,
       };
     })
     .sort((a, b) => b.importancePct - a.importancePct);
