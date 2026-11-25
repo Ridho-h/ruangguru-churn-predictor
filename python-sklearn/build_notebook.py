@@ -1,0 +1,71 @@
+"""Builds churn_analysis.ipynb for Ruangguru AI Engineer Bootcamp syllabus."""
+
+from pathlib import Path
+import json
+
+
+def build_notebook(out_path: Path) -> None:
+    cells = [
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [
+                "# UC-04: Customer Churn Predictor & Retention Planner (Scikit-learn & Pandas)\n",
+                "\n",
+                "Notebook silabus **AI Engineer Bootcamp Ruangguru** — membandingkan `LogisticRegression` vs `RandomForestClassifier` pada 2 dataset pelanggan Indonesia (1.000 baris) yang sama persis dengan web app Next.js."
+            ],
+        },
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": [
+                "from pathlib import Path\n",
+                "import pandas as pd\n",
+                "from train_churn_model import train_and_evaluate\n",
+                "\n",
+                "DATASETS_DIR = Path('../web/public/datasets')\n",
+                "edtech_df = pd.read_csv(DATASETS_DIR / 'edtech_saas_indonesia_1000.csv')\n",
+                "telco_df = pd.read_csv(DATASETS_DIR / 'telco_isp_indonesia_1000.csv')\n",
+                "print('EdTech shape:', edtech_df.shape, '| Churn rate:', f\"{edtech_df['churn'].mean():.1%}\")\n",
+                "print('Telco  shape:', telco_df.shape, '| Churn rate:', f\"{telco_df['churn'].mean():.1%}\")\n",
+                "edtech_df.head()"
+            ],
+        },
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": [
+                "for csv_file in sorted(DATASETS_DIR.glob('*.csv')):\n",
+                "    res = train_and_evaluate(csv_file)\n",
+                "    print(f\"\\n=== {res['dataset']} ===\")\n",
+                "    print(f\"LogisticRegression ROC-AUC : {res['logistic_auc']:.4f}\")\n",
+                "    print(f\"RandomForest      ROC-AUC : {res['rf_auc']:.4f}\")\n",
+                "    display(pd.DataFrame(res['top_features']))"
+            ],
+        },
+    ]
+
+    nb = {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {"name": "python", "version": "3.11"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    out_path.write_text(json.dumps(nb, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    out = Path(__file__).resolve().parent / "churn_analysis.ipynb"
+    build_notebook(out)
+    print(f"Created {out}")
