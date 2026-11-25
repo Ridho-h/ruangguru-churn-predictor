@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import type {
   ChurnAnalysisReport,
@@ -32,24 +31,8 @@ export function InsightPanels({
   const maxImp = Math.max(1, ...topFeatures.map((f) => f.importancePct));
   const total = Math.max(1, report.totalCustomers);
 
-  // 10-bin histogram of customer churn probability (0-10%, 10-20%, ..., 90-100%)
-  const histogram = useMemo(() => {
-    const bins = Array.from({ length: 10 }, (_, idx) => ({
-      label: `${idx * 10}-${idx === 9 ? 100 : (idx + 1) * 10}%`,
-      shortLabel: `${idx * 10}%`,
-      count: 0,
-      segment: (idx >= 7 ? "High" : idx >= 4 ? "Medium" : "Low") as RiskSegment,
-    }));
-    for (const c of report.customers) {
-      const binIdx = Math.min(9, Math.max(0, Math.floor(c.churnProbability / 10)));
-      bins[binIdx].count += 1;
-    }
-    const maxBin = Math.max(1, ...bins.map((b) => b.count));
-    return { bins, maxBin };
-  }, [report.customers]);
-
-  // SVG Donut math (radius = 44, circumference = 2 * PI * 44 ≈ 276.46)
-  const radius = 44;
+  // Larger SVG Donut math (viewBox 180x180, radius = 66, circumference = 2 * PI * 66)
+  const radius = 66;
   const circumference = 2 * Math.PI * radius;
   const highFrac = report.segments.highCount / total;
   const medFrac = report.segments.mediumCount / total;
@@ -71,7 +54,7 @@ export function InsightPanels({
     {
       key: "High",
       label: "Risiko Tinggi",
-      range: "≥ 70%",
+      range: "Skor ≥ 70%",
       count: report.segments.highCount,
       pct: highFrac * 100,
       dotClass: "bg-rose-600",
@@ -80,7 +63,7 @@ export function InsightPanels({
     {
       key: "Medium",
       label: "Risiko Sedang",
-      range: "40–69%",
+      range: "Skor 40–69%",
       count: report.segments.mediumCount,
       pct: medFrac * 100,
       dotClass: "bg-amber-500",
@@ -89,7 +72,7 @@ export function InsightPanels({
     {
       key: "Low",
       label: "Risiko Rendah",
-      range: "< 40%",
+      range: "Skor < 40%",
       count: report.segments.lowCount,
       pct: lowFrac * 100,
       dotClass: "bg-emerald-600",
@@ -194,16 +177,16 @@ export function InsightPanels({
         </div>
       </div>
 
-      {/* Right: Donut Chart + Churn Probability Histogram + AI Segment Playbook */}
+      {/* Right: Enlarged Donut Chart + Segment Breakdown + AI Segment Playbook */}
       <div className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 lg:col-span-6">
-        <div>
+        <div className="flex flex-1 flex-col">
           <div className="flex items-baseline justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">
-                Distribusi Segmen &amp; Sebaran Skor Risiko
+                Distribusi Segmen Risiko Pelanggan
               </h2>
               <p className="mt-0.5 text-xs text-slate-600">
-                Klik segmen untuk memfilter tabel prioritas pelanggan di bawah.
+                Klik salah satu segmen untuk memfilter daftar prioritas pelanggan di bawah.
               </p>
             </div>
             {activeSegmentFilter !== "All" && (
@@ -217,70 +200,73 @@ export function InsightPanels({
             )}
           </div>
 
-          {/* Visual Row: SVG Donut + Interactive Legend */}
-          <div className="mt-4 grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
+          {/* Enlarged Donut + Spacious Segment Cards */}
+          <div className="my-auto grid grid-cols-1 items-center gap-6 py-5 sm:grid-cols-12">
             <div className="flex items-center justify-center sm:col-span-5">
-              <div className="relative h-32 w-32">
+              <div className="relative h-48 w-48 sm:h-52 sm:w-52">
                 <svg
-                  viewBox="0 0 120 120"
+                  viewBox="0 0 180 180"
                   className="h-full w-full -rotate-90"
                   role="img"
                   aria-label="Diagram donat distribusi segmen risiko churn"
                 >
                   <circle
-                    cx="60"
-                    cy="60"
+                    cx="90"
+                    cy="90"
                     r={radius}
                     fill="none"
                     stroke="#f1f5f9"
-                    strokeWidth="16"
+                    strokeWidth="22"
                   />
                   {/* Low Risk (Emerald) */}
                   <circle
-                    cx="60"
-                    cy="60"
+                    cx="90"
+                    cy="90"
                     r={radius}
                     fill="none"
                     stroke="#059669"
-                    strokeWidth="16"
+                    strokeWidth="22"
                     strokeDasharray={`${lowLen} ${circumference}`}
                     strokeDashoffset={0}
                   />
                   {/* Medium Risk (Amber) */}
                   <circle
-                    cx="60"
-                    cy="60"
+                    cx="90"
+                    cy="90"
                     r={radius}
                     fill="none"
                     stroke="#f59e0b"
-                    strokeWidth="16"
+                    strokeWidth="22"
                     strokeDasharray={`${medLen} ${circumference}`}
                     strokeDashoffset={-lowLen}
                   />
                   {/* High Risk (Rose) */}
                   <circle
-                    cx="60"
-                    cy="60"
+                    cx="90"
+                    cy="90"
                     r={radius}
                     fill="none"
                     stroke="#e11d48"
-                    strokeWidth="16"
+                    strokeWidth="22"
                     strokeDasharray={`${highLen} ${circumference}`}
                     strokeDashoffset={-(lowLen + medLen)}
                   />
                 </svg>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="tabular-nums text-lg font-bold text-slate-900">
-                    {(highFrac * 100).toFixed(0)}%
+                  <span className="tabular-nums text-3xl font-bold tracking-tight text-slate-900">
+                    {(highFrac * 100).toFixed(1)}%
                   </span>
-                  <span className="text-[10px] font-medium text-rose-700">
+                  <span className="mt-0.5 text-xs font-semibold text-rose-700">
                     Risiko Tinggi
+                  </span>
+                  <span className="mt-0.5 text-[11px] text-slate-500 tabular-nums">
+                    {report.segments.highCount.toLocaleString("id-ID")} pelanggan
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2 sm:col-span-7">
+            <div className="space-y-3 sm:col-span-7">
               {segRows.map((s) => {
                 const isSelected = activeSegmentFilter === s.key;
                 return (
@@ -290,29 +276,29 @@ export function InsightPanels({
                     onClick={() =>
                       onSelectSegmentFilter(isSelected ? "All" : s.key)
                     }
-                    className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 ${
+                    className={`flex w-full items-center justify-between rounded-lg border px-4 py-3.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 ${
                       isSelected
                         ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${s.dotClass}`} />
+                    <div className="flex items-center gap-3">
+                      <span className={`h-3.5 w-3.5 rounded-full ${s.dotClass}`} />
                       <div>
-                        <div className="text-xs font-medium text-slate-900">
+                        <div className="text-sm font-semibold text-slate-900">
                           {s.label}
                         </div>
-                        <div className="text-[11px] text-slate-500 tabular-nums">
-                          Skor {s.range}
+                        <div className="mt-0.5 text-xs text-slate-500 tabular-nums">
+                          {s.range}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 tabular-nums">
-                      <span className="text-sm font-semibold text-slate-900">
+                    <div className="flex items-center gap-2.5 tabular-nums">
+                      <span className="text-lg font-semibold text-slate-900">
                         {s.count.toLocaleString("id-ID")}
                       </span>
                       <span
-                        className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${s.badgeClass}`}
+                        className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${s.badgeClass}`}
                       >
                         {s.pct.toFixed(1)}%
                       </span>
@@ -322,60 +308,10 @@ export function InsightPanels({
               })}
             </div>
           </div>
-
-          {/* 10-Bin Churn Probability Histogram */}
-          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50/70 px-3.5 py-3">
-            <div className="flex items-center justify-between text-[11px] text-slate-600">
-              <span className="font-medium text-slate-800">
-                Histogram Sebaran Skor Risiko Pelanggan (0% – 100%)
-              </span>
-              <span className="tabular-nums">
-                Puncak: {histogram.maxBin} pelanggan/rentang
-              </span>
-            </div>
-            <div className="mt-2.5 flex h-20 items-end gap-1.5">
-              {histogram.bins.map((bin) => {
-                const heightPct = Math.max(
-                  6,
-                  Math.round((bin.count / histogram.maxBin) * 100),
-                );
-                const barColor =
-                  bin.segment === "High"
-                    ? "bg-rose-500 hover:bg-rose-600"
-                    : bin.segment === "Medium"
-                      ? "bg-amber-400 hover:bg-amber-500"
-                      : "bg-emerald-500 hover:bg-emerald-600";
-
-                return (
-                  <button
-                    key={bin.label}
-                    type="button"
-                    onClick={() => onSelectSegmentFilter(bin.segment)}
-                    title={`Skor ${bin.label}: ${bin.count} pelanggan`}
-                    className="group flex h-full flex-1 flex-col items-center justify-end gap-1"
-                  >
-                    <span className="text-[10px] font-medium text-slate-600 opacity-0 transition-opacity group-hover:opacity-100 tabular-nums">
-                      {bin.count}
-                    </span>
-                    <div
-                      className={`w-full rounded-t transition-all ${barColor}`}
-                      style={{ height: `${heightPct}%` }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] text-slate-500 tabular-nums">
-              <span>0% (Aman)</span>
-              <span>40% (Sedang)</span>
-              <span>70% (Tinggi)</span>
-              <span>100%</span>
-            </div>
-          </div>
         </div>
 
         {/* AI Segment Playbook Trigger */}
-        <div className="mt-4 border-t border-slate-200 pt-4">
+        <div className="mt-2 border-t border-slate-200 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-slate-600">
               Susun 3 playbook retensi prioritas untuk menyelamatkan{" "}
