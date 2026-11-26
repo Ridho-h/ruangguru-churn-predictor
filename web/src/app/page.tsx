@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
-  Download,
   FileSpreadsheet,
   Info,
   Loader2,
@@ -348,15 +347,6 @@ export default function HomePage() {
                 <Upload className="h-4 w-4" />
                 Pilih File CSV dari Komputer
               </button>
-
-              <a
-                href="/datasets/dummy.csv"
-                download="dummy.csv"
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
-              >
-                <Download className="h-4 w-4 text-slate-600" />
-                Unduh dummy.csv (1.000 Pelanggan)
-              </a>
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-4 text-[11px] text-slate-500">
