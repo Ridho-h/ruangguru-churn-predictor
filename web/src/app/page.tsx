@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Info, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Download,
+  FileSpreadsheet,
+  Info,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import { CustomerTable } from "@/components/CustomerTable";
 import { InsightPanels } from "@/components/InsightPanels";
 import { KpiStrip } from "@/components/KpiStrip";
@@ -9,7 +16,6 @@ import { RetentionDrawer } from "@/components/RetentionDrawer";
 import { SchemaModal } from "@/components/SchemaModal";
 import { TopBar } from "@/components/TopBar";
 import { toSafeCsv } from "@/lib/csv";
-import { PRESET_DATASETS } from "@/lib/presets-client";
 import type {
   ChurnAnalysisReport,
   CustomerRetentionPlan,
@@ -20,7 +26,6 @@ import type {
 } from "@/lib/types";
 
 export default function HomePage() {
-  const [activeSource, setActiveSource] = useState<string>("edtech");
   const [reportVersion, setReportVersion] = useState<number>(0);
   const [customCsv, setCustomCsv] = useState<{
     csvText: string;
@@ -28,8 +33,9 @@ export default function HomePage() {
   } | null>(null);
 
   const [report, setReport] = useState<ChurnAnalysisReport | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const [segmentFilter, setSegmentFilter] = useState<RiskSegment | "All">("All");
   const [schemaModalOpen, setSchemaModalOpen] = useState(false);
@@ -47,6 +53,7 @@ export default function HomePage() {
   const [customerPlanLoading, setCustomerPlanLoading] = useState(false);
   const [customerPlanError, setCustomerPlanError] = useState<string | null>(null);
 
+  const dropInputRef = useRef<HTMLInputElement | null>(null);
   const segmentAbortRef = useRef<AbortController | null>(null);
   const customerAbortRef = useRef<AbortController | null>(null);
 
@@ -59,12 +66,18 @@ export default function HomePage() {
     setCustomerPlanLoading(false);
   }, []);
 
+  useEffect(() => {
+    return () => cancelPendingAiRequests();
+  }, [cancelPendingAiRequests]);
+
   const commitNewReport = useCallback(
-    (data: ChurnAnalysisReport, source: string, customPayload: { csvText: string; datasetName: string } | null) => {
+    (
+      data: ChurnAnalysisReport,
+      customPayload: { csvText: string; datasetName: string },
+    ) => {
       cancelPendingAiRequests();
       setReport(data);
       setReportVersion((v) => v + 1);
-      setActiveSource(source);
       setCustomCsv(customPayload);
       setSegmentPlan(null);
       setSegmentPlanError(null);
@@ -74,30 +87,6 @@ export default function HomePage() {
       setSegmentFilter("All");
     },
     [cancelPendingAiRequests],
-  );
-
-  const runPresetAnalysis = useCallback(
-    async (presetId: "edtech" | "telco", schemaOverride?: SchemaOverride) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ presetId, schemaOverride }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Gagal menganalisis dataset.");
-        commitNewReport(data as ChurnAnalysisReport, presetId, null);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Gagal memuat analisis churn.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [commitNewReport],
   );
 
   const runCustomAnalysis = useCallback(
@@ -116,13 +105,13 @@ export default function HomePage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Gagal menganalisis CSV.");
-        commitNewReport(data as ChurnAnalysisReport, "custom", {
+        commitNewReport(data as ChurnAnalysisReport, {
           csvText,
           datasetName,
         });
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Gagal memproses CSV kustom.",
+          err instanceof Error ? err.message : "Gagal memproses file CSV.",
         );
       } finally {
         setLoading(false);
@@ -130,11 +119,6 @@ export default function HomePage() {
     },
     [commitNewReport],
   );
-
-  useEffect(() => {
-    void runPresetAnalysis("edtech");
-    return () => cancelPendingAiRequests();
-  }, [runPresetAnalysis, cancelPendingAiRequests]);
 
   const handleUploadFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv")) {
@@ -150,14 +134,12 @@ export default function HomePage() {
   };
 
   const handleApplySchema = (override: SchemaOverride) => {
-    if (activeSource === "custom" && customCsv) {
+    if (customCsv) {
       void runCustomAnalysis(
         customCsv.csvText,
         customCsv.datasetName,
         override,
       );
-    } else if (activeSource === "edtech" || activeSource === "telco") {
-      void runPresetAnalysis(activeSource, override);
     }
   };
 
@@ -285,12 +267,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900">
       <TopBar
-        presets={PRESET_DATASETS}
-        activeSource={activeSource}
+        activeDatasetName={report?.datasetName ?? null}
         loading={loading}
         canConfigureSchema={Boolean(report)}
         canExport={Boolean(report)}
-        onSelectPreset={(id) => void runPresetAnalysis(id)}
         onUploadFile={(f) => void handleUploadFile(f)}
         onOpenSchema={() => setSchemaModalOpen(true)}
         onExportCsv={handleExportCsv}
@@ -309,75 +289,145 @@ export default function HomePage() {
       )}
 
       {loading && !report ? (
-        <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-slate-600">
+        <div className="flex min-h-[65vh] items-center justify-center gap-2 text-sm text-slate-600">
           <Loader2 className="h-4 w-4 animate-spin text-teal-700" />
           Melatih model Machine Learning &amp; menghitung skor risiko churn...
         </div>
+      ) : !report ? (
+        <main className="mx-auto flex max-w-2xl flex-col items-center justify-center px-4 py-16 sm:px-6">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) void handleUploadFile(file);
+            }}
+            className={`w-full rounded-xl border-2 border-dashed bg-white px-6 py-12 text-center transition-colors ${
+              isDragging
+                ? "border-teal-700 bg-teal-50/40"
+                : "border-slate-300 hover:border-slate-400"
+            }`}
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-teal-700">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+              Unggah File CSV Pelanggan untuk Memulai
+            </h2>
+            <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-600">
+              Tarik dan lepas file <code className="font-mono text-slate-800">.csv</code>{" "}
+              (500–5.000 baris, maks. 5 MB) ke area ini. Sistem akan memetakan
+              kolom otomatis, melatih model <strong>L2 Logistic Regression</strong>{" "}
+              deterministik, dan menyiapkan strategi retensi AI.
+            </p>
+
+            <input
+              ref={dropInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUploadFile(file);
+                e.target.value = "";
+              }}
+            />
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => dropInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-md bg-teal-700 px-4 py-2.5 text-xs font-medium text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              >
+                <Upload className="h-4 w-4" />
+                Pilih File CSV dari Komputer
+              </button>
+
+              <a
+                href="/datasets/dummy.csv"
+                download="dummy.csv"
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
+              >
+                <Download className="h-4 w-4 text-slate-600" />
+                Unduh dummy.csv (1.000 Pelanggan)
+              </a>
+            </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-4 text-[11px] text-slate-500">
+              Mendukung delimiter koma (<code>,</code>) maupun titik koma Excel (<code>;</code>),
+              format Rupiah, serta mode prediksi tanpa kolom label <code>churn</code>.
+            </div>
+          </div>
+        </main>
       ) : (
-        report && (
-          <>
-            <KpiStrip key={`kpi-${reportVersion}`} report={report} />
+        <>
+          <KpiStrip key={`kpi-${reportVersion}`} report={report} />
 
-            <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-5 sm:px-6">
-              {report.modeNotice && (
-                <div className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                  <span>{report.modeNotice}</span>
-                </div>
-              )}
+          <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-5 sm:px-6">
+            {report.modeNotice && (
+              <div className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <span>{report.modeNotice}</span>
+              </div>
+            )}
 
-              <InsightPanels
-                report={report}
-                activeSegmentFilter={segmentFilter}
-                onSelectSegmentFilter={setSegmentFilter}
-                segmentPlan={segmentPlan}
-                segmentPlanLoading={segmentPlanLoading}
-                segmentPlanError={segmentPlanError}
-                onGenerateSegmentPlan={() => void handleGenerateSegmentPlan()}
-              />
+            <InsightPanels
+              report={report}
+              activeSegmentFilter={segmentFilter}
+              onSelectSegmentFilter={setSegmentFilter}
+              segmentPlan={segmentPlan}
+              segmentPlanLoading={segmentPlanLoading}
+              segmentPlanError={segmentPlanError}
+              onGenerateSegmentPlan={() => void handleGenerateSegmentPlan()}
+            />
 
-              <CustomerTable
-                key={`table-${reportVersion}`}
-                customers={report.customers}
-                hasRevenue={Boolean(report.schema.revenueColumn)}
-                segmentFilter={segmentFilter}
-                selectedCustomerId={selectedCustomer?.rowKey ?? null}
-                onSelectSegmentFilter={setSegmentFilter}
-                onSelectCustomer={(c) => {
-                  customerAbortRef.current?.abort();
-                  setCustomerPlanLoading(false);
-                  setSelectedCustomer(c);
-                  setCustomerPlanError(null);
-                }}
-              />
-            </main>
-
-            <RetentionDrawer
-              customer={selectedCustomer}
-              plan={
-                selectedCustomer
-                  ? (customerPlans[selectedCustomer.rowKey] ?? null)
-                  : null
-              }
-              loading={customerPlanLoading}
-              error={customerPlanError}
-              onClose={() => {
+            <CustomerTable
+              key={`table-${reportVersion}`}
+              customers={report.customers}
+              hasRevenue={Boolean(report.schema.revenueColumn)}
+              segmentFilter={segmentFilter}
+              selectedCustomerId={selectedCustomer?.rowKey ?? null}
+              onSelectSegmentFilter={setSegmentFilter}
+              onSelectCustomer={(c) => {
                 customerAbortRef.current?.abort();
                 setCustomerPlanLoading(false);
-                setSelectedCustomer(null);
+                setSelectedCustomer(c);
+                setCustomerPlanError(null);
               }}
-              onGeneratePlan={(c) => void handleGenerateCustomerPlan(c)}
             />
+          </main>
 
-            <SchemaModal
-              key={`schema-${reportVersion}`}
-              open={schemaModalOpen}
-              schema={report.schema}
-              onClose={() => setSchemaModalOpen(false)}
-              onApply={handleApplySchema}
-            />
-          </>
-        )
+          <RetentionDrawer
+            customer={selectedCustomer}
+            plan={
+              selectedCustomer
+                ? (customerPlans[selectedCustomer.rowKey] ?? null)
+                : null
+            }
+            loading={customerPlanLoading}
+            error={customerPlanError}
+            onClose={() => {
+              customerAbortRef.current?.abort();
+              setCustomerPlanLoading(false);
+              setSelectedCustomer(null);
+            }}
+            onGeneratePlan={(c) => void handleGenerateCustomerPlan(c)}
+          />
+
+          <SchemaModal
+            key={`schema-${reportVersion}`}
+            open={schemaModalOpen}
+            schema={report.schema}
+            onClose={() => setSchemaModalOpen(false)}
+            onApply={handleApplySchema}
+          />
+        </>
       )}
     </div>
   );

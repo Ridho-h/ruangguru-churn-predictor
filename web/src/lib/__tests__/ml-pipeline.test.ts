@@ -63,43 +63,36 @@ describe("Auto-Schema Mapper (Review Focus #3)", () => {
   });
 });
 
-describe("Deterministic ML Pipeline on 1,000-row Indonesian presets", () => {
-  it("produces 100% deterministic scores and ROC-AUC >= 0.80 on both EdTech and Telco datasets", () => {
-    for (const filename of [
-      "edtech_saas_indonesia_1000.csv",
-      "telco_isp_indonesia_1000.csv",
-    ]) {
-      const raw = fs.readFileSync(path.join(DATASETS_DIR, filename), "utf-8");
-      const run1 = analyzeChurnDataset({ csvText: raw, datasetName: filename });
-      const run2 = analyzeChurnDataset({ csvText: raw, datasetName: filename });
+describe("Deterministic ML Pipeline on 1,000-row dummy.csv", () => {
+  it("produces 100% deterministic scores and ROC-AUC >= 0.80 on dummy.csv", () => {
+    const filename = "dummy.csv";
+    const raw = fs.readFileSync(path.join(DATASETS_DIR, filename), "utf-8");
+    const run1 = analyzeChurnDataset({ csvText: raw, datasetName: filename });
+    const run2 = analyzeChurnDataset({ csvText: raw, datasetName: filename });
 
-      expect(run1.mode).toBe("supervised");
-      expect(run1.totalCustomers).toBe(1000);
-      expect(run1.metrics).not.toBeNull();
-      expect(run1.metrics!.rocAuc).toBeGreaterThanOrEqual(0.8);
+    expect(run1.mode).toBe("supervised");
+    expect(run1.totalCustomers).toBe(1000);
+    expect(run1.metrics).not.toBeNull();
+    expect(run1.metrics!.rocAuc).toBeGreaterThanOrEqual(0.8);
 
-      // 100% determinism across runs
-      expect(run1.metrics).toEqual(run2.metrics);
-      expect(run1.customers.slice(0, 20).map((c) => c.churnProbability)).toEqual(
-        run2.customers.slice(0, 20).map((c) => c.churnProbability),
-      );
+    // 100% determinism across runs
+    expect(run1.metrics).toEqual(run2.metrics);
+    expect(run1.customers.slice(0, 20).map((c) => c.churnProbability)).toEqual(
+      run2.customers.slice(0, 20).map((c) => c.churnProbability),
+    );
 
-      // Feature importance sums near 100% and customers carry 3 local drivers
-      const totalImp = run1.featureImportance.reduce(
-        (acc, f) => acc + f.importancePct,
-        0,
-      );
-      expect(totalImp).toBeGreaterThanOrEqual(99);
-      expect(totalImp).toBeLessThanOrEqual(101);
-      expect(run1.customers[0].topDrivers).toHaveLength(3);
-    }
+    // Feature importance sums near 100% and customers carry 3 local drivers
+    const totalImp = run1.featureImportance.reduce(
+      (acc, f) => acc + f.importancePct,
+      0,
+    );
+    expect(totalImp).toBeGreaterThanOrEqual(99);
+    expect(totalImp).toBeLessThanOrEqual(101);
+    expect(run1.customers[0].topDrivers).toHaveLength(3);
   });
 
   it("handles unlabeled active-customer CSV gracefully in inference-only mode (Review Focus #1)", () => {
-    const raw = fs.readFileSync(
-      path.join(DATASETS_DIR, "edtech_saas_indonesia_1000.csv"),
-      "utf-8",
-    );
+    const raw = fs.readFileSync(path.join(DATASETS_DIR, "dummy.csv"), "utf-8");
     const parsed = parseCsv(raw);
     const headersWithoutChurn = parsed.headers.filter((h) => h !== "churn");
     const unlabeledCsv = [

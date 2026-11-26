@@ -2,27 +2,22 @@
 
 import { useRef } from "react";
 import { Download, SlidersHorizontal, Upload } from "lucide-react";
-import type { PresetDatasetInfo } from "@/lib/types";
 
 interface TopBarProps {
-  presets: PresetDatasetInfo[];
-  activeSource: string;
+  activeDatasetName: string | null;
   loading: boolean;
   canConfigureSchema: boolean;
   canExport: boolean;
-  onSelectPreset: (presetId: "edtech" | "telco") => void;
   onUploadFile: (file: File) => void;
   onOpenSchema: () => void;
   onExportCsv: () => void;
 }
 
 export function TopBar({
-  presets,
-  activeSource,
+  activeDatasetName,
   loading,
   canConfigureSchema,
   canExport,
-  onSelectPreset,
   onUploadFile,
   onOpenSchema,
   onExportCsv,
@@ -37,32 +32,13 @@ export function TopBar({
             Customer Churn Predictor &amp; Retention Planner
           </h1>
           <p className="text-xs text-slate-600">
-            Prediksi risiko churn deterministik (L2 Logistic Regression) &amp; rencana retensi AI
+            {activeDatasetName
+              ? `Dataset aktif: ${activeDatasetName} · L2 Logistic Regression & Gemini AI`
+              : "Unggah CSV data pelanggan untuk prediksi risiko churn & rencana retensi AI"}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
-            {presets.map((p) => {
-              const isActive = activeSource === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => onSelectPreset(p.id)}
-                  className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 disabled:opacity-50 ${
-                    isActive
-                      ? "bg-teal-700 text-white"
-                      : "text-slate-700 hover:bg-slate-200/70"
-                  }`}
-                >
-                  {p.shortLabel}
-                </button>
-              );
-            })}
-          </div>
-
           <input
             ref={fileInputRef}
             type="file"
@@ -79,10 +55,10 @@ export function TopBar({
             type="button"
             disabled={loading}
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-teal-700 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 disabled:opacity-50"
           >
-            <Upload className="h-3.5 w-3.5 text-slate-600" />
-            Unggah CSV
+            <Upload className="h-3.5 w-3.5" />
+            {activeDatasetName ? "Unggah CSV Lain" : "Unggah CSV"}
           </button>
 
           <button
