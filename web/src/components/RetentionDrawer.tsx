@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, FileText, Loader2, X } from "lucide-react";
 import { formatFeatureLabel } from "@/lib/schema-mapper";
 import type { CustomerRetentionPlan, ScoredCustomer } from "@/lib/types";
@@ -24,18 +24,27 @@ export function RetentionDrawer({
   onGeneratePlan,
 }: RetentionDrawerProps) {
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setCopied(false);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
   }, [customer?.rowKey]);
 
   useEffect(() => {
     if (!customer) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [customer, onClose]);
 
   if (!customer) return null;
@@ -66,6 +75,14 @@ export function RetentionDrawer({
     <div
       className="fixed inset-0 z-40 flex justify-end bg-stone-950/30"
       onClick={onClose}
+      onWheel={(e) => {
+        if (
+          scrollRef.current &&
+          !scrollRef.current.contains(e.target as Node)
+        ) {
+          scrollRef.current.scrollTop += e.deltaY;
+        }
+      }}
     >
       <aside
         role="dialog"
@@ -102,7 +119,10 @@ export function RetentionDrawer({
           </button>
         </div>
 
-        <div className="flex-1 divide-y divide-stone-200 overflow-y-auto px-5">
+        <div
+          ref={scrollRef}
+          className="flex-1 divide-y divide-stone-200 overflow-y-auto overscroll-contain px-5"
+        >
           {/* Drivers */}
           <section className="py-5">
             <h3 className="text-xs font-semibold text-stone-900">
