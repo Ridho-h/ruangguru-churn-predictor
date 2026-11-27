@@ -1,37 +1,70 @@
 "use client";
 
-import { ClipboardList, Loader2 } from "lucide-react";
-import type {
-  ChurnAnalysisReport,
-  RiskSegment,
-  SegmentRetentionPlan,
-} from "@/lib/types";
-import { formatIdr, formatIdrCompact } from "./formatters";
+import { useMemo } from "react";
+import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import type { ChurnAnalysisReport, RiskSegment } from "@/lib/types";
+import { formatIdrCompact } from "./formatters";
 
 interface InsightPanelsProps {
   report: ChurnAnalysisReport;
-  activeSegmentFilter: RiskSegment | "All";
-  onSelectSegmentFilter: (seg: RiskSegment | "All") => void;
-  segmentPlan: SegmentRetentionPlan | null;
-  segmentPlanLoading: boolean;
-  segmentPlanError: string | null;
-  onGenerateSegmentPlan: () => void;
+  onJumpToSegment: (seg: RiskSegment) => void;
 }
 
 export function InsightPanels({
   report,
-  activeSegmentFilter,
-  onSelectSegmentFilter,
-  segmentPlan,
-  segmentPlanLoading,
-  segmentPlanError,
-  onGenerateSegmentPlan,
+  onJumpToSegment,
 }: InsightPanelsProps) {
-  const topFeatures = report.featureImportance.slice(0, 6);
-  const maxImp = Math.max(1, ...topFeatures.map((f) => f.importancePct));
-  const total = Math.max(1, report.totalCustomers);
+  const triggerDrivers = useMemo(
+    () =>
+      report.featureImportance
+        .filter((f) => f.direction === "increase")
+        .slice(0, 3),
+    [report.featureImportance],
+  );
 
-  const radius = 66;
+  const retentionDrivers = useMemo(
+    () =>
+      report.featureImportance
+        .filter((f) => f.direction === "decrease")
+        .slice(0, 3),
+    [report.featureImportance],
+  );
+
+  const maxTrigger = Math.max(
+    1,
+    ...triggerDrivers.map((f) => f.importancePct),
+  );
+  const maxRetention = Math.max(
+    1,
+    ...retentionDrivers.map((f) => f.importancePct),
+  );
+
+  const packageBreakdown = useMemo(() => {
+    const map = new Map<
+      string,
+      { label: string; total: number; high: number; highRev: number }
+    >();
+    for (const c of report.customers) {
+      const key = (c.segmentLabel || "Lainnya").trim() || "Lainnya";
+      const cur = map.get(key) ?? { label: key, total: 0, high: 0, highRev: 0 };
+      cur.total += 1;
+      if (c.riskSegment === "High") {
+        cur.high += 1;
+        cur.highRev += c.monthlyRevenueIdr || 0;
+      }
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        highRate: item.total > 0 ? (item.high / item.total) * 100 : 0,
+      }))
+      .sort((a, b) => b.highRate - a.highRate)
+      .slice(0, 3);
+  }, [report.customers]);
+
+  const total = Math.max(1, report.totalCustomers);
+  const radius = 60;
   const circumference = 2 * Math.PI * radius;
   const highFrac = report.segments.highCount / total;
   const medFrac = report.segments.mediumCount / total;
@@ -48,370 +81,311 @@ export function InsightPanels({
     count: number;
     pct: number;
     dotClass: string;
-    pctClass: string;
-    activeRing: string;
+    badgeClass: string;
+    hoverBg: string;
   }> = [
     {
       key: "High",
       label: "Risiko Tinggi",
-      range: "Skor ≥ 70%",
+      range: "≥ 70%",
       count: report.segments.highCount,
       pct: highFrac * 100,
       dotClass: "bg-rose-600",
-      pctClass: "text-rose-700 bg-rose-50 border-rose-200",
-      activeRing: "bg-rose-50/50 ring-1 ring-rose-300",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      hoverBg: "hover:bg-rose-50/50",
     },
     {
       key: "Medium",
       label: "Risiko Sedang",
-      range: "Skor 40–69%",
+      range: "40–69%",
       count: report.segments.mediumCount,
       pct: medFrac * 100,
       dotClass: "bg-amber-500",
-      pctClass: "text-amber-800 bg-amber-50 border-amber-200",
-      activeRing: "bg-amber-50/50 ring-1 ring-amber-300",
+      badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
+      hoverBg: "hover:bg-amber-50/50",
     },
     {
       key: "Low",
       label: "Risiko Rendah",
-      range: "Skor < 40%",
+      range: "< 40%",
       count: report.segments.lowCount,
       pct: lowFrac * 100,
       dotClass: "bg-emerald-600",
-      pctClass: "text-emerald-800 bg-emerald-50 border-emerald-200",
-      activeRing: "bg-emerald-50/50 ring-1 ring-emerald-300",
+      badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      hoverBg: "hover:bg-emerald-50/50",
     },
   ];
 
   return (
-    <section className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      {/* Left: Diverging Tornado Chart */}
-      <div className="surface-card overflow-hidden rounded-2xl lg:col-span-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 bg-[#FAF9F6] px-5 py-4">
-          <div>
-            <h2 className="text-[15px] font-bold tracking-tight text-zinc-950">
-              Faktor Penyebab Churn
-            </h2>
-            <p className="mt-0.5 text-xs text-stone-500">
-              Kiri menahan pelanggan tetap aktif; kanan mendorong risiko
-              berhenti.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] font-semibold">
-            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-              <span className="h-2.5 w-2.5 rounded-xs bg-emerald-600" />
-              Menahan
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-rose-700">
-              <span className="h-2.5 w-2.5 rounded-xs bg-rose-600" />
-              Memicu
-            </span>
-          </div>
+    <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      {/* Left (7 cols): Equal Top 3 Pemicu vs Top 3 Penahan Churn */}
+      <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)] lg:col-span-7">
+        <div className="border-b border-zinc-100 bg-zinc-50/70 px-5 py-3">
+          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-950">
+            Faktor Utama Penyebab Churn
+          </h2>
+          <p className="text-[11.5px] text-zinc-500">
+            3 faktor terbesar pemicu pelanggan berhenti dibandingkan 3 faktor
+            penahan pelanggan tetap aktif.
+          </p>
         </div>
 
-        <div className="p-5">
-          <div className="grid grid-cols-12 items-center border-b border-stone-200 pb-2 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-            <div className="col-span-5">Faktor</div>
-            <div className="col-span-3 pr-2 text-right text-emerald-700">
-              ← Menahan
+        <div className="grid flex-1 grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          {/* Sub-column 1: Top 3 Pemicu Churn */}
+          <div className="flex flex-col p-5">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold text-rose-700">
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span>Top 3 Pemicu Churn</span>
             </div>
-            <div className="col-span-3 pl-2 text-left text-rose-700">
-              Memicu →
-            </div>
-            <div className="col-span-1 text-right">Bobot</div>
-          </div>
-
-          <div className="mt-1 divide-y divide-stone-100">
-            {topFeatures.map((feat) => {
-              const barWidth = Math.max(
-                10,
-                (feat.importancePct / maxImp) * 100,
-              );
-              const isIncrease = feat.direction === "increase";
-              const insight =
-                feat.insightText ??
-                (isIncrease
-                  ? "Makin tinggi nilainya, makin besar risiko berhenti"
-                  : "Makin tinggi nilainya, makin kecil risiko berhenti");
-
-              return (
-                <div
-                  key={feat.feature}
-                  className="-mx-2 grid grid-cols-12 items-center gap-1 rounded-lg px-2 py-2.5 transition-colors hover:bg-stone-50"
-                >
-                  <div className="col-span-5 pr-2">
-                    <div className="text-xs font-semibold text-zinc-900">
-                      {feat.label}
-                    </div>
-                    <div className="mt-0.5 text-[11px] leading-snug text-stone-500">
-                      {insight}
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 flex items-center justify-end border-r border-stone-300 pr-2">
-                    {!isIncrease ? (
-                      <div
-                        className="h-3.5 rounded-l-sm bg-emerald-600 transition-all"
-                        style={{ width: `${barWidth}%` }}
-                        title={`${feat.label}: ${feat.importancePct}% (Menahan Churn)`}
-                      />
-                    ) : (
-                      <div className="h-3.5 w-full" />
-                    )}
-                  </div>
-
-                  <div className="col-span-3 flex items-center justify-start pl-2">
-                    {isIncrease ? (
-                      <div
-                        className="h-3.5 rounded-r-sm bg-rose-600 transition-all"
-                        style={{ width: `${barWidth}%` }}
-                        title={`${feat.label}: ${feat.importancePct}% (Memicu Churn)`}
-                      />
-                    ) : (
-                      <div className="h-3.5 w-full" />
-                    )}
-                  </div>
-
-                  <div className="col-span-1 text-right text-xs font-semibold text-zinc-900 tabular-nums">
-                    {feat.importancePct.toFixed(1)}%
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Donut Chart + Interactive Segment List + Playbook Bar */}
-      <div className="surface-card flex flex-col justify-between overflow-hidden rounded-2xl lg:col-span-6">
-        <div className="flex flex-1 flex-col">
-          <div className="flex items-center justify-between gap-2 border-b border-stone-200/80 bg-[#FAF9F6] px-5 py-4">
-            <div>
-              <h2 className="text-[15px] font-bold tracking-tight text-zinc-950">
-                Sebaran Risiko Pelanggan
-              </h2>
-              <p className="mt-0.5 text-xs text-stone-500">
-                Klik segmen untuk menyaring daftar pelanggan di bawah.
-              </p>
-            </div>
-            {activeSegmentFilter !== "All" && (
-              <button
-                type="button"
-                onClick={() => onSelectSegmentFilter("All")}
-                className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 transition-colors hover:bg-stone-100"
-              >
-                Tampilkan semua
-              </button>
-            )}
-          </div>
-
-          <div className="my-auto grid grid-cols-1 items-center gap-6 px-5 py-6 sm:grid-cols-12">
-            <div className="flex items-center justify-center sm:col-span-5">
-              <div className="relative h-48 w-48 sm:h-52 sm:w-52">
-                <svg
-                  viewBox="0 0 180 180"
-                  className="h-full w-full -rotate-90 drop-shadow-[0_2px_6px_rgba(24,24,27,0.06)]"
-                  role="img"
-                  aria-label="Diagram donat sebaran risiko pelanggan"
-                >
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#f5f5f4"
-                    strokeWidth="22"
-                  />
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#059669"
-                    strokeWidth="22"
-                    strokeDasharray={`${lowLen} ${circumference}`}
-                    strokeDashoffset={0}
-                  />
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth="22"
-                    strokeDasharray={`${medLen} ${circumference}`}
-                    strokeDashoffset={-lowLen}
-                  />
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#e11d48"
-                    strokeWidth="22"
-                    strokeDasharray={`${highLen} ${circumference}`}
-                    strokeDashoffset={-(lowLen + medLen)}
-                  />
-                </svg>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="tabular-nums text-[30px] font-bold tracking-tight text-zinc-950">
-                    {(highFrac * 100).toFixed(1)}%
-                  </span>
-                  <span className="mt-0.5 text-xs font-semibold text-rose-700">
-                    Risiko Tinggi
-                  </span>
-                  <span className="mt-0.5 text-[11px] text-stone-500 tabular-nums">
-                    {report.segments.highCount.toLocaleString("id-ID")} orang
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-7">
-              {segRows.map((s) => {
-                const isSelected = activeSegmentFilter === s.key;
+            <div className="mt-4 flex flex-1 flex-col justify-between gap-4">
+              {triggerDrivers.map((feat, idx) => {
+                const width = Math.max(
+                  16,
+                  (feat.importancePct / maxTrigger) * 100,
+                );
                 return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() =>
-                      onSelectSegmentFilter(isSelected ? "All" : s.key)
-                    }
-                    className={`flex w-full items-center justify-between rounded-xl px-3.5 py-3 text-left transition-all ${
-                      isSelected ? s.activeRing : "hover:bg-stone-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`h-3 w-3 rounded-full ${s.dotClass}`}
+                  <div key={feat.feature}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[13px] font-semibold text-zinc-900">
+                        {idx + 1}. {feat.label}
+                      </span>
+                      <span className="shrink-0 text-[12.5px] font-bold text-rose-700 tabular-nums">
+                        {feat.importancePct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-rose-50">
+                      <div
+                        className="h-full rounded-full bg-rose-600"
+                        style={{ width: `${width}%` }}
                       />
-                      <div>
-                        <div className="text-[13.5px] font-semibold text-zinc-900">
-                          {s.label}
-                        </div>
-                        <div className="text-xs text-stone-500 tabular-nums">
-                          {s.range}
-                        </div>
-                      </div>
                     </div>
-                    <div className="flex items-center gap-2.5 tabular-nums">
-                      <span className="text-[16px] font-bold text-zinc-950">
-                        {s.count.toLocaleString("id-ID")}
+                    <p className="mt-1.5 text-[11.5px] leading-snug text-zinc-500">
+                      {feat.insightText ??
+                        "Makin tinggi nilainya, makin besar risiko berhenti"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sub-column 2: Top 3 Penahan Churn */}
+          <div className="flex flex-col p-5">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700">
+              <TrendingDown className="h-3.5 w-3.5" />
+              <span>Top 3 Penahan Churn</span>
+            </div>
+            <div className="mt-4 flex flex-1 flex-col justify-between gap-4">
+              {retentionDrivers.map((feat, idx) => {
+                const width = Math.max(
+                  16,
+                  (feat.importancePct / maxRetention) * 100,
+                );
+                return (
+                  <div key={feat.feature}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[13px] font-semibold text-zinc-900">
+                        {idx + 1}. {feat.label}
                       </span>
-                      <span
-                        className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${s.pctClass}`}
-                      >
-                        {s.pct.toFixed(1)}%
+                      <span className="shrink-0 text-[12.5px] font-bold text-emerald-700 tabular-nums">
+                        {feat.importancePct.toFixed(1)}%
                       </span>
                     </div>
-                  </button>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-emerald-50">
+                      <div
+                        className="h-full rounded-full bg-emerald-600"
+                        style={{ width: `${width}%` }}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[11.5px] leading-snug text-zinc-500">
+                      {feat.insightText ??
+                        "Makin tinggi nilainya, makin kecil risiko berhenti"}
+                    </p>
+                  </div>
                 );
               })}
             </div>
           </div>
         </div>
-
-        {/* Distinct Emerald-tinted Playbook Action Strip */}
-        <div className="border-t border-emerald-200/70 bg-emerald-50/45 px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-xs text-stone-700">
-              Susun 3 langkah retensi untuk{" "}
-              <span className="font-bold text-zinc-950 tabular-nums">
-                {report.segments.highCount.toLocaleString("id-ID")} pelanggan
-                risiko tinggi
-              </span>
-              .
-            </div>
-            <button
-              type="button"
-              disabled={segmentPlanLoading}
-              onClick={onGenerateSegmentPlan}
-              className="btn-emerald inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-xs font-semibold transition-all disabled:opacity-60"
-            >
-              {segmentPlanLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ClipboardList className="h-3.5 w-3.5" />
-              )}
-              {segmentPlanLoading
-                ? "Menyusun rencana..."
-                : "Buat Rencana Retensi"}
-            </button>
-          </div>
-
-          {segmentPlanError && (
-            <div
-              role="alert"
-              className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800"
-            >
-              {segmentPlanError}
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Rendered Segment Playbook */}
-      {segmentPlan && (
-        <div className="surface-card overflow-hidden rounded-2xl lg:col-span-12">
-          <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-stone-200/80 bg-[#FAF9F6] px-6 py-4">
-            <div>
-              <h3 className="text-[15px] font-bold text-zinc-950">
-                Rencana Retensi — Segmen Risiko Tinggi
-              </h3>
-              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-stone-600">
-                {segmentPlan.executiveSummary}
-              </p>
-            </div>
-            <div className="text-right tabular-nums">
-              <div className="text-[11px] font-semibold text-stone-500">
-                Potensi Pendapatan Diselamatkan
-              </div>
-              <div
-                className="text-xl font-bold text-emerald-700"
-                title={formatIdr(segmentPlan.estimatedSaveableRevenueIdr)}
-              >
-                {formatIdrCompact(segmentPlan.estimatedSaveableRevenueIdr)} /
-                bln
-              </div>
-              <div className="text-[11px] text-stone-500">
-                {segmentPlan.assumptionNote}
-              </div>
-            </div>
+      {/* Right (5 cols): Top = Sebaran Risiko (Donut), Bottom = Risiko Churn per Paket (Compact Strip) */}
+      <div className="flex flex-col gap-4 lg:col-span-5">
+        {/* Card A (Top): Sebaran Risiko Pelanggan with Donut */}
+        <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+          <div className="border-b border-zinc-100 bg-zinc-50/70 px-5 py-3">
+            <h2 className="text-[14px] font-semibold tracking-tight text-zinc-950">
+              Sebaran Risiko Pelanggan
+            </h2>
+            <p className="text-[11.5px] text-zinc-500">
+              Klik salah satu segmen untuk langsung membuka daftar pelanggannya.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 divide-y divide-stone-200/80 p-6 md:grid-cols-3 md:divide-x md:divide-y-0">
-            {segmentPlan.playbooks.map((pb, idx) => (
-              <div
-                key={`${pb.title}-${idx}`}
-                className="py-3 md:px-5 md:py-1 first:md:pl-0 last:md:pr-0"
+          <div className="flex flex-1 flex-col items-center justify-center gap-5 px-5 py-4 sm:flex-row">
+            <div className="relative h-36 w-36 shrink-0">
+              <svg
+                viewBox="0 0 160 160"
+                className="h-full w-full -rotate-90"
+                role="img"
+                aria-label="Diagram donat sebaran risiko pelanggan"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-[13px] font-bold text-zinc-950">
-                    {pb.title}
-                  </h4>
-                  <span className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
-                    {pb.channel}
-                  </span>
-                </div>
-                <p className="mt-2.5 text-xs leading-relaxed text-stone-600">
-                  <span className="font-semibold text-zinc-800">Sasaran:</span>{" "}
-                  {pb.targetCondition}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-stone-600">
-                  <span className="font-semibold text-zinc-800">Langkah:</span>{" "}
-                  {pb.tactic}
-                </p>
-                <p className="mt-2.5 border-t border-stone-100 pt-2 text-[11px] text-stone-500">
-                  <span className="font-semibold text-stone-700">
-                    Indikator:
-                  </span>{" "}
-                  {pb.successMetric}
-                </p>
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  fill="none"
+                  stroke="#f4f4f5"
+                  strokeWidth="18"
+                />
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  fill="none"
+                  stroke="#059669"
+                  strokeWidth="18"
+                  strokeDasharray={`${lowLen} ${circumference}`}
+                  strokeDashoffset={0}
+                />
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="18"
+                  strokeDasharray={`${medLen} ${circumference}`}
+                  strokeDashoffset={-lowLen}
+                />
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  fill="none"
+                  stroke="#e11d48"
+                  strokeWidth="18"
+                  strokeDasharray={`${highLen} ${circumference}`}
+                  strokeDashoffset={-(lowLen + medLen)}
+                />
+              </svg>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="tabular-nums text-[24px] font-bold leading-none tracking-tight text-zinc-950">
+                  {(highFrac * 100).toFixed(1)}%
+                </span>
+                <span className="mt-1 text-[10.5px] font-semibold text-rose-700">
+                  Risiko Tinggi
+                </span>
               </div>
-            ))}
+            </div>
+
+            <div className="w-full flex-1 divide-y divide-zinc-100">
+              {segRows.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => onJumpToSegment(s.key)}
+                  className={`group -mx-2 flex w-[calc(100%+16px)] items-center justify-between rounded-lg px-2.5 py-2.5 text-left transition-colors ${s.hoverBg}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${s.dotClass}`}
+                    />
+                    <div>
+                      <div className="text-[12.5px] font-semibold text-zinc-900">
+                        {s.label}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 tabular-nums">
+                        Skor {s.range}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 tabular-nums">
+                    <span className="text-[13.5px] font-bold text-zinc-950">
+                      {s.count.toLocaleString("id-ID")}
+                    </span>
+                    <span
+                      className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold ${s.badgeClass}`}
+                    >
+                      {s.pct.toFixed(1)}%
+                    </span>
+                    <ArrowRight className="h-3.5 w-3.5 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-700" />
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Card B (Bottom): Compact Risiko Churn per Paket with 3-color stacked bar */}
+        <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[13.5px] font-semibold tracking-tight text-zinc-950">
+              Risiko Churn per Paket
+            </h2>
+            <span className="text-[11px] text-zinc-400">
+              Proporsi pelanggan risiko tinggi
+            </span>
+          </div>
+
+          {(() => {
+            const totalHighInPkgs = Math.max(
+              1,
+              packageBreakdown.reduce((acc, p) => acc + p.high, 0),
+            );
+            const barColors = ["bg-rose-600", "bg-amber-500", "bg-emerald-600"];
+            const dotColors = ["bg-rose-600", "bg-amber-500", "bg-emerald-600"];
+            return (
+              <>
+                <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                  {packageBreakdown.map((pkg, idx) => {
+                    const share = (pkg.high / totalHighInPkgs) * 100;
+                    return (
+                      <div
+                        key={pkg.label}
+                        className={`h-full ${barColors[idx] ?? "bg-zinc-400"}`}
+                        style={{ width: `${share}%` }}
+                        title={`${pkg.label}: ${pkg.high} risiko tinggi (${pkg.highRate.toFixed(1)}%)`}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {packageBreakdown.map((pkg, idx) => (
+                    <div
+                      key={pkg.label}
+                      className="rounded-lg border border-zinc-200/90 bg-zinc-50/40 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${dotColors[idx] ?? "bg-zinc-400"}`}
+                        />
+                        <span className="truncate text-[11.5px] font-semibold text-zinc-800">
+                          {pkg.label}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-baseline gap-1.5 tabular-nums">
+                        <span className="text-[15px] font-bold text-zinc-950">
+                          {pkg.highRate.toFixed(1)}%
+                        </span>
+                        <span className="text-[11px] text-zinc-400">
+                          ({pkg.high}/{pkg.total})
+                        </span>
+                      </div>
+                      {report.schema.revenueColumn ? (
+                        <div className="mt-0.5 truncate text-[10.5px] text-zinc-500 tabular-nums">
+                          {formatIdrCompact(pkg.highRev)}/bln
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
     </section>
   );
 }

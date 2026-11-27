@@ -23,42 +23,61 @@ export function RetentionDrawer({
   onClose,
   onGeneratePlan,
 }: RetentionDrawerProps) {
+  const isOpen = Boolean(customer);
+  const [displayCustomer, setDisplayCustomer] =
+    useState<ScoredCustomer | null>(customer);
+  const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     setCopied(false);
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
+    if (customer) {
+      setDisplayCustomer(customer);
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      let raf2 = 0;
+      const raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        window.cancelAnimationFrame(raf1);
+        window.cancelAnimationFrame(raf2);
+      };
+    } else {
+      setVisible(false);
+      const timer = window.setTimeout(() => setDisplayCustomer(null), 210);
+      return () => window.clearTimeout(timer);
     }
-  }, [customer?.rowKey]);
+  }, [customer]);
 
   useEffect(() => {
-    if (!customer) return;
+    if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [customer, onClose]);
+  }, [isOpen]);
 
-  if (!customer) return null;
+  if (!displayCustomer) return null;
 
   const badgeClass =
-    customer.riskSegment === "High"
+    displayCustomer.riskSegment === "High"
       ? "bg-rose-50 text-rose-700 border-rose-200"
-      : customer.riskSegment === "Medium"
+      : displayCustomer.riskSegment === "Medium"
         ? "bg-amber-50 text-amber-800 border-amber-200"
         : "bg-emerald-50 text-emerald-800 border-emerald-200";
 
   const maxContrib = Math.max(
     0.1,
-    ...customer.topDrivers.map((d) => Math.abs(d.contribution)),
+    ...displayCustomer.topDrivers.map((d) => Math.abs(d.contribution)),
   );
 
   const handleCopy = async (text: string) => {
@@ -73,8 +92,12 @@ export function RetentionDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex justify-end bg-zinc-950/30 backdrop-blur-[1px]"
-      onClick={onClose}
+      className={`fixed inset-0 z-40 flex justify-end transition-opacity duration-200 ${
+        visible
+          ? "pointer-events-auto opacity-100"
+          : "pointer-events-none opacity-0"
+      }`}
+      onClick={isOpen ? onClose : undefined}
       onWheel={(e) => {
         if (
           scrollRef.current &&
@@ -84,36 +107,43 @@ export function RetentionDrawer({
         }
       }}
     >
+      <div
+        className="fixed inset-0 bg-zinc-950/30 backdrop-blur-[1px]"
+        aria-hidden="true"
+      />
+
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Detail Pelanggan dan Saran Tindak Lanjut"
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-lg flex-col border-l border-stone-200 bg-white shadow-2xl"
+        className={`relative z-10 flex h-full w-full max-w-lg flex-col border-l border-zinc-200 bg-white shadow-2xl transition-transform duration-200 ease-out ${
+          visible ? "translate-x-0" : "translate-x-full"
+        }`}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-stone-200 bg-[#FAF9F6] px-6 py-5">
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 bg-zinc-50/80 px-6 py-5">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[17px] font-bold tracking-tight text-zinc-950">
-                {customer.name}
+                {displayCustomer.name}
               </h2>
               <span
                 className={`rounded-md border px-2 py-0.5 text-xs font-bold tabular-nums ${badgeClass}`}
               >
-                {customer.churnProbability}% Risiko
+                {displayCustomer.churnProbability}% Risiko
               </span>
             </div>
-            <p className="mt-1 text-xs text-stone-500 tabular-nums">
-              <span className="font-mono">{customer.id}</span> ·{" "}
-              {customer.segmentLabel} · {formatIdr(customer.monthlyRevenueIdr)}
-              /bln
+            <p className="mt-1 text-xs text-zinc-500 tabular-nums">
+              <span className="font-mono">{displayCustomer.id}</span> ·{" "}
+              {displayCustomer.segmentLabel} ·{" "}
+              {formatIdr(displayCustomer.monthlyRevenueIdr)}/bln
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup panel detail"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-200/70 hover:text-zinc-900"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
           >
             <X className="h-4 w-4" />
           </button>
@@ -121,7 +151,7 @@ export function RetentionDrawer({
 
         <div
           ref={scrollRef}
-          className="flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-6"
+          className="thin-scroll flex-1 divide-y divide-zinc-100 overflow-y-auto overscroll-contain px-6"
         >
           {/* Drivers */}
           <section className="py-5">
@@ -129,7 +159,7 @@ export function RetentionDrawer({
               Penyebab Risiko Pelanggan Ini
             </h3>
             <div className="mt-3.5 space-y-3.5">
-              {customer.topDrivers.map((d) => {
+              {displayCustomer.topDrivers.map((d) => {
                 const isInc = d.direction === "increase";
                 const pct = Math.max(
                   10,
@@ -138,7 +168,7 @@ export function RetentionDrawer({
                 return (
                   <div key={d.feature}>
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-stone-600">
+                      <span className="text-zinc-600">
                         {d.label}:{" "}
                         <span className="font-semibold text-zinc-950">
                           {d.value}
@@ -152,7 +182,7 @@ export function RetentionDrawer({
                         {isInc ? "Mendorong churn" : "Menahan churn"}
                       </span>
                     </div>
-                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
                       <div
                         className={`h-full rounded-full ${
                           isInc ? "bg-rose-600" : "bg-emerald-600"
@@ -175,7 +205,7 @@ export function RetentionDrawer({
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => onGeneratePlan(customer)}
+                onClick={() => onGeneratePlan(displayCustomer)}
                 className="btn-emerald inline-flex h-8.5 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold transition-all disabled:opacity-60"
               >
                 {loading ? (
@@ -201,7 +231,7 @@ export function RetentionDrawer({
             )}
 
             {!plan && !loading && !error && (
-              <p className="mt-2.5 text-xs leading-relaxed text-stone-500">
+              <p className="mt-2.5 text-xs leading-relaxed text-zinc-500">
                 Buat rekomendasi penawaran dan draf pesan WhatsApp atau email
                 yang siap dikirim ke pelanggan ini.
               </p>
@@ -211,7 +241,7 @@ export function RetentionDrawer({
               <div className="mt-4 space-y-4 text-xs">
                 <div>
                   <div className="font-semibold text-zinc-900">Ringkasan</div>
-                  <p className="mt-1 leading-relaxed text-stone-600">
+                  <p className="mt-1 leading-relaxed text-zinc-600">
                     {plan.riskDiagnosis}
                   </p>
                 </div>
@@ -220,14 +250,14 @@ export function RetentionDrawer({
                   <div className="font-semibold text-zinc-900">
                     Langkah 48 Jam ke Depan
                   </div>
-                  <p className="mt-1 leading-relaxed text-stone-600">
+                  <p className="mt-1 leading-relaxed text-zinc-600">
                     {plan.recommendedAction}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200/80 bg-[#FAF9F6] p-3.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 border-y border-zinc-100 py-3 sm:grid-cols-2">
                   <div>
-                    <div className="text-[11px] font-medium text-stone-500">
+                    <div className="text-[11px] font-medium text-zinc-500">
                       Saran Penawaran
                     </div>
                     <div className="mt-0.5 font-semibold text-zinc-900">
@@ -235,7 +265,7 @@ export function RetentionDrawer({
                     </div>
                   </div>
                   <div>
-                    <div className="text-[11px] font-medium text-stone-500">
+                    <div className="text-[11px] font-medium text-zinc-500">
                       Kanal
                     </div>
                     <div className="mt-0.5 font-semibold text-emerald-800">
@@ -244,7 +274,7 @@ export function RetentionDrawer({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-zinc-900">
                       Draf Pesan
@@ -252,7 +282,7 @@ export function RetentionDrawer({
                     <button
                       type="button"
                       onClick={() => handleCopy(plan.outreachMessage)}
-                      className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-700 shadow-2xs transition-colors hover:bg-stone-50"
+                      className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-2xs transition-colors hover:bg-zinc-50"
                     >
                       {copied ? (
                         <>
@@ -280,14 +310,14 @@ export function RetentionDrawer({
             <h3 className="text-[13px] font-bold text-zinc-900">
               Data Pelanggan
             </h3>
-            <dl className="mt-2.5 divide-y divide-stone-100 rounded-xl border border-stone-200/80 bg-[#FAF9F6]/60 px-3.5">
-              {Object.entries(customer.rawFeatures).map(([key, val]) => (
+            <dl className="mt-2.5 divide-y divide-zinc-100">
+              {Object.entries(displayCustomer.rawFeatures).map(([key, val]) => (
                 <div
                   key={key}
-                  className="flex items-center justify-between gap-2 py-2.5 text-xs"
+                  className="flex items-center justify-between gap-2 py-2 text-xs"
                 >
-                  <dt className="text-stone-500">{formatFeatureLabel(key)}</dt>
-                  <dd className="font-semibold text-zinc-900 tabular-nums">
+                  <dt className="text-zinc-500">{formatFeatureLabel(key)}</dt>
+                  <dd className="font-medium text-zinc-900 tabular-nums">
                     {val}
                   </dd>
                 </div>

@@ -67,6 +67,73 @@ function buildHeuristicModel(prep: FittedPreprocessor): LogisticModel {
   return { weights, bias: -0.45 };
 }
 
+function buildFeatureInsight(
+  feature: string,
+  label: string,
+  direction: "increase" | "decrease",
+  kind: "numeric" | "categorical",
+  dominantCategory?: string,
+): string {
+  const key = feature.toLowerCase();
+
+  if (kind === "categorical" && dominantCategory) {
+    if (key.includes("kontrak") || key.includes("contract")) {
+      return direction === "increase"
+        ? `Kontrak "${dominantCategory}" paling rentan berhenti`
+        : `Kontrak "${dominantCategory}" paling kuat menjaga pelanggan tetap aktif`;
+    }
+    if (key.includes("auto_debit") || key.includes("autopay")) {
+      return direction === "increase"
+        ? `Status "${dominantCategory}" cenderung memicu risiko berhenti`
+        : `Status "${dominantCategory}" membantu menekan risiko berhenti`;
+    }
+    return direction === "increase"
+      ? `Kategori "${dominantCategory}" paling kuat memicu churn`
+      : `Kategori "${dominantCategory}" paling kuat menahan churn`;
+  }
+
+  if (key.includes("login") || key.includes("inaktif") || key.includes("inactive")) {
+    return direction === "increase"
+      ? "Makin lama tidak login, makin tinggi peluang berhenti"
+      : "Aktivitas login yang rutin menjaga pelanggan tetap bertahan";
+  }
+  if (key.includes("tiket") || key.includes("ticket") || key.includes("komplain") || key.includes("complaint")) {
+    return direction === "increase"
+      ? "Makin sering melapor keluhan, makin besar risiko berhenti"
+      : "Keluhan yang tertangani baik menekan risiko berhenti";
+  }
+  if (key.includes("telat") || key.includes("late") || key.includes("tunggak")) {
+    return direction === "increase"
+      ? "Riwayat telat bayar berulang erat kaitannya dengan churn"
+      : "Pembayaran tepat waktu berkaitan dengan retensi tinggi";
+  }
+  if (key.includes("gangguan") || key.includes("outage")) {
+    return direction === "increase"
+      ? "Frekuensi gangguan layanan langsung mendorong pelanggan pindah"
+      : "Stabilitas layanan menjaga pelanggan tetap bertahan";
+  }
+  if (key.includes("sesi") || key.includes("session") || key.includes("aktif") || key.includes("usage")) {
+    return direction === "increase"
+      ? "Lonjakan pola pemakaian berkorelasi dengan risiko berhenti"
+      : "Makin rutin aktif tiap minggu, makin setia berlangganan";
+  }
+  if (key.includes("lama") || key.includes("tenure") || key.includes("bulan_berlangganan")) {
+    return direction === "increase"
+      ? "Pelanggan dengan masa langganan tertentu lebih rentan berhenti"
+      : "Pelanggan yang sudah lama berlangganan cenderung lebih bertahan";
+  }
+  if (key.includes("nps") || key.includes("puas") || key.includes("rating") || key.includes("csat")) {
+    return direction === "increase"
+      ? "Perubahan skor kepuasan mendorong risiko berhenti"
+      : "Skor kepuasan tinggi menjaga pelanggan tetap aktif";
+  }
+
+  const lowerLabel = label.toLowerCase();
+  return direction === "increase"
+    ? `Makin tinggi ${lowerLabel}, makin besar risiko berhenti`
+    : `Makin tinggi ${lowerLabel}, makin kecil risiko berhenti`;
+}
+
 function computeGlobalFeatureImportance(
   prep: FittedPreprocessor,
   model: LogisticModel,
@@ -105,18 +172,18 @@ function computeGlobalFeatureImportance(
     .map(([feature, stats]) => {
       const direction: "increase" | "decrease" =
         stats.dominantSigned >= 0 ? "increase" : "decrease";
-      const insightText =
-        stats.kind === "categorical" && stats.dominantCategory
-          ? direction === "increase"
-            ? `Nilai "${stats.dominantCategory}" paling kuat memicu churn`
-            : `Nilai "${stats.dominantCategory}" paling kuat menahan churn`
-          : direction === "increase"
-            ? "Makin tinggi nilainya, makin besar risiko churn"
-            : "Makin tinggi nilainya, makin kecil risiko churn";
+      const label = formatFeatureLabel(feature);
+      const insightText = buildFeatureInsight(
+        feature,
+        label,
+        direction,
+        stats.kind,
+        stats.dominantCategory,
+      );
 
       return {
         feature,
-        label: formatFeatureLabel(feature),
+        label,
         importancePct: Number(((stats.maxAbs / totalAbs) * 100).toFixed(1)),
         direction,
         directionLabel:

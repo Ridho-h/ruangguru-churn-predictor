@@ -293,7 +293,8 @@ export async function generateSegmentRetentionPlan(
     driversText || "-",
     "",
     "Tugas: Susun 3 playbook retensi prioritas untuk menyelamatkan segmen risiko tinggi dalam 30 hari ke depan.",
-    "Hitung estimatedSaveableRevenueIdr secara realistis (sekitar 25%-40% dari total MRR at Risk) dan jelaskan asumsinya di assumptionNote.",
+    "Aturan keringkasan: tulis jelas, operasional, dan nyaman dibaca — executiveSummary 1-2 kalimat (20-35 kata), title maks. 6 kata, targetCondition 15-22 kata, tactic 25-35 kata yang konkret, successMetric 10-16 kata.",
+    "Hitung estimatedSaveableRevenueIdr secara realistis (sekitar 25%-40% dari total MRR at Risk) dan tulis assumptionNote singkat (maks. 8 kata).",
     "Kembalikan HANYA 1 objek JSON valid sesuai skema.",
   ].join("\n");
 
