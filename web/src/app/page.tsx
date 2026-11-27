@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Info,
   Loader2,
+  SlidersHorizontal,
   Upload,
 } from "lucide-react";
 import { CustomerTable } from "@/components/CustomerTable";
@@ -13,7 +14,6 @@ import { InsightPanels } from "@/components/InsightPanels";
 import { KpiStrip } from "@/components/KpiStrip";
 import { RetentionDrawer } from "@/components/RetentionDrawer";
 import { SchemaModal } from "@/components/SchemaModal";
-import { TopBar } from "@/components/TopBar";
 import { toSafeCsv } from "@/lib/csv";
 import type {
   ChurnAnalysisReport,
@@ -39,20 +39,24 @@ export default function HomePage() {
   const [segmentFilter, setSegmentFilter] = useState<RiskSegment | "All">("All");
   const [schemaModalOpen, setSchemaModalOpen] = useState(false);
 
-  const [segmentPlan, setSegmentPlan] = useState<SegmentRetentionPlan | null>(null);
+  const [segmentPlan, setSegmentPlan] = useState<SegmentRetentionPlan | null>(
+    null,
+  );
   const [segmentPlanLoading, setSegmentPlanLoading] = useState(false);
   const [segmentPlanError, setSegmentPlanError] = useState<string | null>(null);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<ScoredCustomer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<ScoredCustomer | null>(null);
   const [customerPlans, setCustomerPlans] = useState<
     Record<string, CustomerRetentionPlan>
   >({});
   const [customerPlanLoading, setCustomerPlanLoading] = useState(false);
-  const [customerPlanError, setCustomerPlanError] = useState<string | null>(null);
+  const [customerPlanError, setCustomerPlanError] = useState<string | null>(
+    null,
+  );
 
   const dropInputRef = useRef<HTMLInputElement | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const segmentAbortRef = useRef<AbortController | null>(null);
   const customerAbortRef = useRef<AbortController | null>(null);
 
@@ -166,12 +170,15 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (controller.signal.aborted) return;
-      if (!res.ok) throw new Error(data.error || "Gagal menyusun strategi AI.");
+      if (!res.ok)
+        throw new Error(data.error || "Gagal menyusun rencana retensi.");
       setSegmentPlan(data.plan as SegmentRetentionPlan);
     } catch (err) {
       if (controller.signal.aborted) return;
       setSegmentPlanError(
-        err instanceof Error ? err.message : "Gagal menyusun strategi AI.",
+        err instanceof Error
+          ? err.message
+          : "Gagal menyusun rencana retensi.",
       );
     } finally {
       if (!controller.signal.aborted) {
@@ -202,7 +209,7 @@ export default function HomePage() {
       const data = await res.json();
       if (controller.signal.aborted) return;
       if (!res.ok)
-        throw new Error(data.error || "Gagal menyusun rencana retensi.");
+        throw new Error(data.error || "Gagal menyusun saran tindak lanjut.");
       setCustomerPlans((prev) => ({
         ...prev,
         [customer.rowKey]: data.plan as CustomerRetentionPlan,
@@ -212,7 +219,7 @@ export default function HomePage() {
       setCustomerPlanError(
         err instanceof Error
           ? err.message
-          : "Gagal menyusun rencana retensi personal.",
+          : "Gagal menyusun saran tindak lanjut.",
       );
     } finally {
       if (!controller.signal.aborted) {
@@ -264,22 +271,12 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      <TopBar
-        activeDatasetName={report?.datasetName ?? null}
-        loading={loading}
-        canConfigureSchema={Boolean(report)}
-        canExport={Boolean(report)}
-        onUploadFile={(f) => void handleUploadFile(f)}
-        onOpenSchema={() => setSchemaModalOpen(true)}
-        onExportCsv={handleExportCsv}
-      />
-
+    <div className="min-h-screen bg-[#FAF9F7] text-[#1C1917]">
       {error && (
-        <div className="mx-auto max-w-[1440px] px-4 pt-4 sm:px-6">
+        <div className="mx-auto max-w-[1360px] px-4 pt-5 sm:px-6">
           <div
             role="alert"
-            className="flex items-start gap-2.5 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+            className="flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
@@ -288,12 +285,22 @@ export default function HomePage() {
       )}
 
       {loading && !report ? (
-        <div className="flex min-h-[65vh] items-center justify-center gap-2 text-sm text-slate-600">
-          <Loader2 className="h-4 w-4 animate-spin text-teal-700" />
-          Melatih model Machine Learning &amp; menghitung skor risiko churn...
+        <div className="flex min-h-[75vh] items-center justify-center gap-2.5 text-sm text-stone-600">
+          <Loader2 className="h-4 w-4 animate-spin text-stone-800" />
+          Menganalisis data pelanggan...
         </div>
       ) : !report ? (
-        <main className="mx-auto flex max-w-2xl flex-col items-center justify-center px-4 py-16 sm:px-6">
+        <main className="mx-auto flex min-h-[85vh] max-w-xl flex-col justify-center px-4 py-16 sm:px-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-950">
+              Prediksi Churn Pelanggan
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-stone-600">
+              Unggah data pelanggan dalam format CSV untuk melihat siapa yang
+              berisiko berhenti berlangganan dan faktor pendorong utamanya.
+            </p>
+          </div>
+
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -306,24 +313,22 @@ export default function HomePage() {
               const file = e.dataTransfer.files?.[0];
               if (file) void handleUploadFile(file);
             }}
-            className={`w-full rounded-xl border-2 border-dashed bg-white px-6 py-12 text-center transition-colors ${
+            className={`mt-6 w-full rounded-xl border border-dashed bg-white px-6 py-12 text-center transition-colors ${
               isDragging
-                ? "border-teal-700 bg-teal-50/40"
-                : "border-slate-300 hover:border-slate-400"
+                ? "border-stone-900 bg-stone-50"
+                : "border-stone-300 hover:border-stone-400"
             }`}
           >
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-teal-700">
-              <FileSpreadsheet className="h-6 w-6" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-700">
+              <FileSpreadsheet className="h-5 w-5" strokeWidth={1.75} />
             </div>
 
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">
-              Unggah File CSV Pelanggan untuk Memulai
-            </h2>
-            <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-600">
-              Tarik dan lepas file <code className="font-mono text-slate-800">.csv</code>{" "}
-              (500–5.000 baris, maks. 5 MB) ke area ini. Sistem akan memetakan
-              kolom otomatis, melatih model <strong>L2 Logistic Regression</strong>{" "}
-              deterministik, dan menyiapkan strategi retensi AI.
+            <p className="mt-4 text-sm font-medium text-stone-900">
+              Tarik dan lepas file CSV di sini
+            </p>
+            <p className="mt-1 text-xs text-stone-500">
+              Maksimal 5 MB · Mendukung pemisah koma (<code>,</code>) atau titik
+              koma (<code>;</code>)
             </p>
 
             <input
@@ -338,34 +343,77 @@ export default function HomePage() {
               }}
             />
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={() => dropInputRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-md bg-teal-700 px-4 py-2.5 text-xs font-medium text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="inline-flex items-center gap-2 rounded-md bg-stone-900 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
               >
-                <Upload className="h-4 w-4" />
-                Pilih File CSV dari Komputer
+                <Upload className="h-3.5 w-3.5" />
+                Pilih File CSV
               </button>
-            </div>
-
-            <div className="mt-6 border-t border-slate-200 pt-4 text-[11px] text-slate-500">
-              Mendukung delimiter koma (<code>,</code>) maupun titik koma Excel (<code>;</code>),
-              format Rupiah, serta mode prediksi tanpa kolom label <code>churn</code>.
             </div>
           </div>
         </main>
       ) : (
         <>
-          <KpiStrip key={`kpi-${reportVersion}`} report={report} />
+          <main className="mx-auto max-w-[1360px] space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+            {/* Compact contextual document title row (no sticky top header) */}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight text-stone-950">
+                  Analisis Risiko Churn
+                </h1>
+                <p className="mt-0.5 text-xs text-stone-500 tabular-nums">
+                  {report.datasetName} ·{" "}
+                  {report.totalCustomers.toLocaleString("id-ID")} pelanggan ·{" "}
+                  {report.schema.numericFeatures.length +
+                    report.schema.categoricalFeatures.length}{" "}
+                  kolom dianalisis
+                </p>
+              </div>
 
-          <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-5 sm:px-6">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={replaceInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleUploadFile(file);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setSchemaModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-stone-500" />
+                  Ubah Kolom
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => replaceInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
+                >
+                  <Upload className="h-3.5 w-3.5 text-stone-500" />
+                  Ganti CSV
+                </button>
+              </div>
+            </div>
+
             {report.modeNotice && (
-              <div className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                 <span>{report.modeNotice}</span>
               </div>
             )}
+
+            <KpiStrip key={`kpi-${reportVersion}`} report={report} />
 
             <InsightPanels
               report={report}
@@ -390,6 +438,7 @@ export default function HomePage() {
                 setSelectedCustomer(c);
                 setCustomerPlanError(null);
               }}
+              onExportCsv={handleExportCsv}
             />
           </main>
 

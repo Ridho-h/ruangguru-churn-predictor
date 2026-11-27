@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
 import type { RiskSegment, ScoredCustomer } from "@/lib/types";
 import { formatIdr } from "./formatters";
 
@@ -12,6 +12,7 @@ interface CustomerTableProps {
   selectedCustomerId: string | null;
   onSelectSegmentFilter: (seg: RiskSegment | "All") => void;
   onSelectCustomer: (customer: ScoredCustomer) => void;
+  onExportCsv: () => void;
 }
 
 const PAGE_SIZE = 25;
@@ -23,6 +24,7 @@ export function CustomerTable({
   selectedCustomerId,
   onSelectSegmentFilter,
   onSelectCustomer,
+  onExportCsv,
 }: CustomerTableProps) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -54,22 +56,22 @@ export function CustomerTable({
   );
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5">
+    <section className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3.5 sm:px-5">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
-            Daftar Prioritas Pelanggan Berisiko Churn
+          <h2 className="text-sm font-semibold text-stone-950">
+            Daftar Pelanggan
           </h2>
-          <p className="text-xs text-slate-600 tabular-nums">
+          <p className="text-xs text-stone-500 tabular-nums">
             Menampilkan {filtered.length.toLocaleString("id-ID")} dari{" "}
-            {customers.length.toLocaleString("id-ID")} pelanggan · diurutkan
-            dari risiko tertinggi
+            {customers.length.toLocaleString("id-ID")} pelanggan · urut dari
+            risiko tertinggi
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-stone-400" />
             <input
               type="search"
               aria-label="Cari pelanggan berdasarkan nama, ID, atau paket"
@@ -79,11 +81,11 @@ export function CustomerTable({
                 setPage(1);
               }}
               placeholder="Cari nama, ID, atau paket..."
-              className="w-56 rounded-md border border-slate-300 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700 focus:outline-none"
+              className="w-52 rounded-md border border-stone-200 bg-white py-1.5 pl-8 pr-3 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none"
             />
           </div>
 
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
+          <div className="inline-flex rounded-md border border-stone-200 bg-stone-50 p-0.5 text-xs">
             {(["All", "High", "Medium", "Low"] as const).map((seg) => {
               const label =
                 seg === "All"
@@ -104,8 +106,8 @@ export function CustomerTable({
                   }}
                   className={`rounded px-2.5 py-1 font-medium transition-colors ${
                     active
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-200/70"
+                      ? "bg-stone-900 text-white"
+                      : "text-stone-600 hover:bg-stone-200/60 hover:text-stone-950"
                   }`}
                 >
                   {label}
@@ -113,31 +115,41 @@ export function CustomerTable({
               );
             })}
           </div>
+
+          <button
+            type="button"
+            onClick={onExportCsv}
+            className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-800 transition-colors hover:bg-stone-50"
+          >
+            <Download className="h-3.5 w-3.5 text-stone-500" />
+            Unduh CSV
+          </button>
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+            <tr className="border-b border-stone-200 bg-stone-50 text-[11px] font-medium text-stone-500">
               <th className="px-4 py-2.5">Pelanggan</th>
               <th className="px-4 py-2.5">Paket / Segmen</th>
               {hasRevenue && (
                 <th className="px-4 py-2.5 text-right">Tagihan / Bln</th>
               )}
               <th className="px-4 py-2.5 text-right">Risiko Churn</th>
-              <th className="px-4 py-2.5">Faktor Pendorong Utama</th>
+              <th className="px-4 py-2.5">Faktor Utama</th>
               <th className="px-4 py-2.5 text-right">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-stone-200">
             {pageRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={hasRevenue ? 6 : 5}
-                  className="px-4 py-10 text-center text-xs text-slate-500"
+                  className="px-4 py-10 text-center text-xs text-stone-500"
                 >
-                  Tidak ada pelanggan yang cocok dengan filter pencarian saat ini.
+                  Tidak ada pelanggan yang cocok dengan filter pencarian saat
+                  ini.
                 </td>
               </tr>
             ) : (
@@ -156,20 +168,20 @@ export function CustomerTable({
                     key={c.rowKey}
                     onClick={() => onSelectCustomer(c)}
                     className={`cursor-pointer transition-colors ${
-                      isSelected ? "bg-teal-50/70" : "hover:bg-slate-50"
+                      isSelected ? "bg-stone-100/80" : "hover:bg-stone-50"
                     }`}
                   >
                     <td className="px-4 py-2.5">
-                      <div className="font-medium text-slate-900">{c.name}</div>
-                      <div className="font-mono text-[11px] text-slate-500">
+                      <div className="font-medium text-stone-950">{c.name}</div>
+                      <div className="font-mono text-[11px] text-stone-500">
                         {c.id}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-700">
+                    <td className="px-4 py-2.5 text-stone-700">
                       {c.segmentLabel}
                     </td>
                     {hasRevenue && (
-                      <td className="px-4 py-2.5 text-right font-medium text-slate-900 tabular-nums">
+                      <td className="px-4 py-2.5 text-right font-medium text-stone-900 tabular-nums">
                         {formatIdr(c.monthlyRevenueIdr)}
                       </td>
                     )}
@@ -180,11 +192,11 @@ export function CustomerTable({
                         {c.churnProbability}%
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-700">
+                    <td className="px-4 py-2.5 text-stone-600">
                       {topDriver ? (
                         <span>
                           {topDriver.label}:{" "}
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-stone-900">
                             {topDriver.value}
                           </span>
                         </span>
@@ -199,7 +211,7 @@ export function CustomerTable({
                           e.stopPropagation();
                           onSelectCustomer(c);
                         }}
-                        className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-800 hover:border-teal-700 hover:text-teal-800"
+                        className="rounded border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-800 hover:border-stone-400 hover:bg-stone-50"
                       >
                         Detail
                       </button>
@@ -213,7 +225,7 @@ export function CustomerTable({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-xs text-slate-600 sm:px-5">
+      <div className="flex items-center justify-between border-t border-stone-200 px-4 py-3 text-xs text-stone-500 sm:px-5">
         <div className="tabular-nums">
           Halaman {safePage} dari {totalPages}
         </div>
@@ -222,7 +234,7 @@ export function CustomerTable({
             type="button"
             disabled={safePage <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded border border-stone-200 bg-white px-2.5 py-1 font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Sebelumnya
@@ -231,7 +243,7 @@ export function CustomerTable({
             type="button"
             disabled={safePage >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded border border-stone-200 bg-white px-2.5 py-1 font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40"
           >
             Berikutnya
             <ChevronRight className="h-3.5 w-3.5" />

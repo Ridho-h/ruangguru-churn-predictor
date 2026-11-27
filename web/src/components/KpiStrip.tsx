@@ -19,79 +19,71 @@ export function KpiStrip({ report }: KpiStripProps) {
   return (
     <section
       aria-label="Ringkasan Metrik Utama"
-      className="border-b border-slate-200 bg-white"
+      className="overflow-hidden rounded-xl border border-stone-200 bg-white"
     >
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x">
-        <div className="px-4 py-4 sm:px-6">
-          <div className="text-xs font-medium text-slate-600">
-            Total Pelanggan Dianalisis
+      <div className="grid grid-cols-1 divide-y divide-stone-200 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x">
+        <div className="px-5 py-4">
+          <div className="text-xs font-medium text-stone-500">
+            Total Pelanggan
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="tabular-nums text-2xl font-semibold text-slate-900">
-              {report.totalCustomers.toLocaleString("id-ID")}
-            </span>
-            <span className="truncate text-xs text-slate-500">
-              {report.datasetName}
-            </span>
+          <div className="mt-1.5 tabular-nums text-2xl font-semibold tracking-tight text-stone-950">
+            {report.totalCustomers.toLocaleString("id-ID")}
           </div>
-          <div className="mt-1 text-xs text-slate-500 tabular-nums">
-            Selesai dalam {report.durationMs} ms ·{" "}
-            {report.schema.numericFeatures.length +
-              report.schema.categoricalFeatures.length}{" "}
-            fitur aktif
+          <div className="mt-1 text-xs text-stone-500 tabular-nums">
+            Diproses dalam {report.durationMs} ms
           </div>
         </div>
 
-        <div className="px-4 py-4 sm:px-6">
-          <div className="text-xs font-medium text-slate-600">
-            Pelanggan Risiko Tinggi (&ge; 70%)
+        <div className="px-5 py-4">
+          <div className="text-xs font-medium text-stone-500">
+            Risiko Tinggi (&ge; 70%)
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="tabular-nums text-2xl font-semibold text-rose-700">
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="tabular-nums text-2xl font-semibold tracking-tight text-rose-700">
               {report.segments.highCount.toLocaleString("id-ID")}
             </span>
             <span className="tabular-nums rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700">
               {highPct.toFixed(1)}%
             </span>
           </div>
-          <div className="mt-1 text-xs text-slate-500 tabular-nums">
-            Sedang: {report.segments.mediumCount.toLocaleString("id-ID")} ·
-            Rendah: {report.segments.lowCount.toLocaleString("id-ID")}
+          <div className="mt-1 text-xs text-stone-500 tabular-nums">
+            Sedang {report.segments.mediumCount.toLocaleString("id-ID")} ·
+            Rendah {report.segments.lowCount.toLocaleString("id-ID")}
           </div>
         </div>
 
-        <div className="px-4 py-4 sm:px-6">
-          <div className="text-xs font-medium text-slate-600">
-            Pendapatan Berisiko / Bulan
+        <div className="px-5 py-4">
+          <div className="text-xs font-medium text-stone-500">
+            Pendapatan Berisiko / Bln
           </div>
           <div
-            className="mt-1 tabular-nums text-2xl font-semibold text-slate-900"
+            className="mt-1.5 tabular-nums text-2xl font-semibold tracking-tight text-stone-950"
             title={formatIdr(report.segments.highRevenueAtRiskIdr)}
           >
             {report.schema.revenueColumn
               ? formatIdrCompact(report.segments.highRevenueAtRiskIdr)
               : "Tidak terdeteksi"}
           </div>
-          <div className="mt-1 text-xs text-slate-500 tabular-nums">
+          <div className="mt-1 text-xs text-stone-500 tabular-nums">
             {report.schema.revenueColumn
-              ? `Dari total ${formatIdrCompact(report.segments.totalMonthlyRevenueIdr)}/bln`
-              : "Pilih kolom pendapatan di Pemetaan Kolom"}
+              ? `Dari ${formatIdrCompact(report.segments.totalMonthlyRevenueIdr)}/bln`
+              : "Atur kolom pendapatan di Ubah Kolom"}
           </div>
         </div>
 
-        <div className="px-4 py-4 sm:px-6">
+        <div className="px-5 py-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-600">
-              Performa Model (Split 80/20)
+            <span className="text-xs font-medium text-stone-500">
+              Akurasi Model
             </span>
             {report.metrics && (
               <button
                 type="button"
                 aria-expanded={showMatrix}
                 onClick={() => setShowMatrix((v) => !v)}
-                className="inline-flex items-center gap-0.5 text-xs font-medium text-teal-700 hover:text-teal-800"
+                className="inline-flex items-center gap-0.5 text-xs font-medium text-stone-600 hover:text-stone-950"
               >
-                Matrix
+                Detail
                 {showMatrix ? (
                   <ChevronUp className="h-3.5 w-3.5" />
                 ) : (
@@ -102,27 +94,27 @@ export function KpiStrip({ report }: KpiStripProps) {
           </div>
           {report.metrics ? (
             <>
-              <div className="mt-1 flex items-baseline gap-2.5">
-                <span className="tabular-nums text-2xl font-semibold text-teal-800">
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <span className="tabular-nums text-2xl font-semibold tracking-tight text-stone-950">
                   {report.metrics.rocAuc.toFixed(3)}
                 </span>
-                <span className="text-xs font-medium text-slate-600">
+                <span className="text-xs font-medium text-stone-500">
                   ROC-AUC
                 </span>
               </div>
-              <div className="mt-1 text-xs text-slate-500 tabular-nums">
-                F1: {formatPct(report.metrics.f1Score)} · Precision:{" "}
-                {formatPct(report.metrics.precision)} · Recall:{" "}
+              <div className="mt-1 text-xs text-stone-500 tabular-nums">
+                F1 {formatPct(report.metrics.f1Score)} · Precision{" "}
+                {formatPct(report.metrics.precision)} · Recall{" "}
                 {formatPct(report.metrics.recall)}
               </div>
             </>
           ) : (
             <>
-              <div className="mt-1 text-base font-semibold text-amber-800">
-                Mode Tanpa Label
+              <div className="mt-1.5 text-base font-semibold text-amber-800">
+                Tanpa Label Historis
               </div>
-              <div className="mt-1 text-xs text-slate-500">
-                Skoring heuristik perilaku (tanpa kolom target churn)
+              <div className="mt-1 text-xs text-stone-500">
+                Skor dihitung dari pola perilaku pelanggan
               </div>
             </>
           )}
@@ -130,28 +122,27 @@ export function KpiStrip({ report }: KpiStripProps) {
       </div>
 
       {showMatrix && report.metrics && (
-        <div className="border-t border-slate-200 bg-slate-50/80">
-          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-3 text-xs sm:px-6">
-            <div className="text-slate-700">
-              <span className="font-semibold text-slate-900">
-                Confusion Matrix Data Uji ({report.metrics.testSize} baris,
-                threshold 50%):
+        <div className="border-t border-stone-200 bg-stone-50/80 px-5 py-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-stone-600">
+              <span className="font-medium text-stone-900">
+                Uji validasi ({report.metrics.testSize} data uji,{" "}
+                {report.metrics.trainSize} data latih):
               </span>{" "}
-              Akurasi {formatPct(report.metrics.accuracy)} · Train{" "}
-              {report.metrics.trainSize} baris
+              Akurasi {formatPct(report.metrics.accuracy)}
             </div>
             <div className="flex flex-wrap gap-2 tabular-nums">
-              <span className="rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800">
-                True Positive (Churn Tepat): {report.metrics.confusionMatrix.tp}
+              <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">
+                Churn Tepat: {report.metrics.confusionMatrix.tp}
               </span>
-              <span className="rounded border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-700">
-                True Negative (Aktif Tepat): {report.metrics.confusionMatrix.tn}
+              <span className="rounded border border-stone-200 bg-white px-2 py-0.5 font-medium text-stone-700">
+                Aktif Tepat: {report.metrics.confusionMatrix.tn}
               </span>
-              <span className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-800">
+              <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
                 False Positive: {report.metrics.confusionMatrix.fp}
               </span>
-              <span className="rounded border border-rose-200 bg-rose-50 px-2.5 py-1 font-medium text-rose-800">
-                False Negative (Terlewat): {report.metrics.confusionMatrix.fn}
+              <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 font-medium text-rose-800">
+                Terlewat: {report.metrics.confusionMatrix.fn}
               </span>
             </div>
           </div>

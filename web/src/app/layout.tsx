@@ -1,23 +1,24 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-dm-sans",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
+  weight: ["400", "500"],
+  variable: "--font-ibm-plex-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Customer Churn Predictor & Retention Planner — Ruangguru AI Bootcamp",
+  title: "Prediksi Churn Pelanggan",
   description:
-    "Prediksi risiko churn pelanggan berbasis Machine Learning deterministik (L2 Logistic Regression) dan penyusunan strategi retensi personal berbasis Gemini AI.",
+    "Analisis risiko pelanggan berhenti berlangganan dari file CSV dan susun prioritas tindak lanjut retensi.",
 };
 
 export default function RootLayout({
@@ -26,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-[#f8fafc] text-[#0f172a] antialiased selection:bg-[#0f766e]/15 selection:text-[#0f766e]">
+    <html lang="id" className={`${dmSans.variable} ${ibmPlexMono.variable}`}>
+      <body className="min-h-screen bg-[#FAF9F7] text-[#1C1917] antialiased selection:bg-stone-900/10 selection:text-stone-950">
         {children}
       </body>
     </html>
