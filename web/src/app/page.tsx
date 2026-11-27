@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
   Banknote,
   CheckCircle2,
   FileSpreadsheet,
@@ -51,7 +52,6 @@ export default function HomePage() {
   );
 
   const dropInputRef = useRef<HTMLInputElement | null>(null);
-  const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const segmentAbortRef = useRef<AbortController | null>(null);
   const customerAbortRef = useRef<AbortController | null>(null);
 
@@ -63,6 +63,17 @@ export default function HomePage() {
     setSegmentPlanLoading(false);
     setCustomerPlanLoading(false);
   }, []);
+
+  const handleBackToUpload = useCallback(() => {
+    cancelPendingAiRequests();
+    setReport(null);
+    setSelectedCustomer(null);
+    setSegmentPlan(null);
+    setSegmentPlanError(null);
+    setCustomerPlans({});
+    setCustomerPlanError(null);
+    setError(null);
+  }, [cancelPendingAiRequests]);
 
   useEffect(() => {
     return () => cancelPendingAiRequests();
@@ -245,7 +256,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F3EF] text-zinc-900">
+    <div className="min-h-screen bg-[#ECEBE5] text-zinc-900">
       {error && (
         <div className="mx-auto max-w-[1360px] px-4 pt-5 sm:px-6">
           <div
@@ -397,47 +408,42 @@ export default function HomePage() {
       ) : (
         <>
           <main className="mx-auto max-w-[1360px] space-y-6 px-4 py-7 sm:px-6 sm:py-8">
-            {/* Compact contextual document title row (no sticky header bar) */}
+            {/* Compact contextual document title row */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-[22px] font-bold tracking-tight text-zinc-950">
-                    Analisis Risiko Churn
-                  </h1>
-                  <span className="inline-flex items-center rounded-md border border-stone-200 bg-white px-2.5 py-0.5 text-[12px] font-medium text-stone-600 shadow-2xs tabular-nums">
-                    {report.datasetName}
-                  </span>
-                </div>
-                <p className="mt-1 text-[13px] text-stone-500 tabular-nums">
-                  {report.totalCustomers.toLocaleString("id-ID")} pelanggan ·{" "}
-                  {report.schema.numericFeatures.length +
-                    report.schema.categoricalFeatures.length}{" "}
-                  kolom dianalisis dalam {report.durationMs} ms
-                </p>
-              </div>
-
-              <div>
-                <input
-                  ref={replaceInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleUploadFile(file);
-                    e.target.value = "";
-                  }}
-                />
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() => replaceInputRef.current?.click()}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3.5 text-xs font-semibold text-zinc-800 shadow-2xs transition-all hover:border-stone-300 hover:bg-stone-50 active:scale-[0.98] disabled:opacity-50"
+                  onClick={handleBackToUpload}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-stone-300/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-2xs transition-all hover:border-stone-400 hover:bg-stone-50 hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50"
                 >
-                  <Upload className="h-3.5 w-3.5 text-stone-500" />
-                  Ganti CSV
+                  <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.85} />
+                  <span>Unggah Ulang</span>
                 </button>
+
+                <span
+                  className="hidden h-5 w-px bg-stone-300 sm:inline-block"
+                  aria-hidden="true"
+                />
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-[20px] font-bold tracking-tight text-zinc-950">
+                      Analisis Risiko Churn
+                    </h1>
+                    <span className="inline-flex items-center rounded-md border border-stone-300/80 bg-white px-2 py-0.5 text-[11.5px] font-medium text-stone-600 shadow-2xs tabular-nums">
+                      {report.datasetName}
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              <p className="text-[12.5px] font-medium text-stone-600 tabular-nums">
+                {report.totalCustomers.toLocaleString("id-ID")} pelanggan ·{" "}
+                {report.schema.numericFeatures.length +
+                  report.schema.categoricalFeatures.length}{" "}
+                kolom · {report.durationMs} ms
+              </p>
             </div>
 
             {report.modeNotice && (
