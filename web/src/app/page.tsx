@@ -6,30 +6,23 @@ import {
   FileSpreadsheet,
   Info,
   Loader2,
-  SlidersHorizontal,
   Upload,
 } from "lucide-react";
 import { CustomerTable } from "@/components/CustomerTable";
 import { InsightPanels } from "@/components/InsightPanels";
 import { KpiStrip } from "@/components/KpiStrip";
 import { RetentionDrawer } from "@/components/RetentionDrawer";
-import { SchemaModal } from "@/components/SchemaModal";
 import { toSafeCsv } from "@/lib/csv";
 import type {
   ChurnAnalysisReport,
   CustomerRetentionPlan,
   RiskSegment,
-  SchemaOverride,
   ScoredCustomer,
   SegmentRetentionPlan,
 } from "@/lib/types";
 
 export default function HomePage() {
   const [reportVersion, setReportVersion] = useState<number>(0);
-  const [customCsv, setCustomCsv] = useState<{
-    csvText: string;
-    datasetName: string;
-  } | null>(null);
 
   const [report, setReport] = useState<ChurnAnalysisReport | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -37,7 +30,6 @@ export default function HomePage() {
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const [segmentFilter, setSegmentFilter] = useState<RiskSegment | "All">("All");
-  const [schemaModalOpen, setSchemaModalOpen] = useState(false);
 
   const [segmentPlan, setSegmentPlan] = useState<SegmentRetentionPlan | null>(
     null,
@@ -74,14 +66,10 @@ export default function HomePage() {
   }, [cancelPendingAiRequests]);
 
   const commitNewReport = useCallback(
-    (
-      data: ChurnAnalysisReport,
-      customPayload: { csvText: string; datasetName: string },
-    ) => {
+    (data: ChurnAnalysisReport) => {
       cancelPendingAiRequests();
       setReport(data);
       setReportVersion((v) => v + 1);
-      setCustomCsv(customPayload);
       setSegmentPlan(null);
       setSegmentPlanError(null);
       setSelectedCustomer(null);
@@ -93,25 +81,18 @@ export default function HomePage() {
   );
 
   const runCustomAnalysis = useCallback(
-    async (
-      csvText: string,
-      datasetName: string,
-      schemaOverride?: SchemaOverride,
-    ) => {
+    async (csvText: string, datasetName: string) => {
       setLoading(true);
       setError(null);
       try {
         const res = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ csvText, datasetName, schemaOverride }),
+          body: JSON.stringify({ csvText, datasetName }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Gagal menganalisis CSV.");
-        commitNewReport(data as ChurnAnalysisReport, {
-          csvText,
-          datasetName,
-        });
+        commitNewReport(data as ChurnAnalysisReport);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Gagal memproses file CSV.",
@@ -134,16 +115,6 @@ export default function HomePage() {
     }
     const text = await file.text();
     await runCustomAnalysis(text, file.name);
-  };
-
-  const handleApplySchema = (override: SchemaOverride) => {
-    if (customCsv) {
-      void runCustomAnalysis(
-        customCsv.csvText,
-        customCsv.datasetName,
-        override,
-      );
-    }
   };
 
   const handleGenerateSegmentPlan = async () => {
@@ -388,15 +359,6 @@ export default function HomePage() {
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() => setSchemaModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5 text-stone-500" />
-                  Ubah Kolom
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
                   onClick={() => replaceInputRef.current?.click()}
                   className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
                 >
@@ -457,14 +419,6 @@ export default function HomePage() {
               setSelectedCustomer(null);
             }}
             onGeneratePlan={(c) => void handleGenerateCustomerPlan(c)}
-          />
-
-          <SchemaModal
-            key={`schema-${reportVersion}`}
-            open={schemaModalOpen}
-            schema={report.schema}
-            onClose={() => setSchemaModalOpen(false)}
-            onApply={handleApplySchema}
           />
         </>
       )}

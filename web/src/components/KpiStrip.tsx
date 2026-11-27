@@ -67,7 +67,7 @@ export function KpiStrip({ report }: KpiStripProps) {
           <div className="mt-1 text-xs text-stone-500 tabular-nums">
             {report.schema.revenueColumn
               ? `Dari ${formatIdrCompact(report.segments.totalMonthlyRevenueIdr)}/bln`
-              : "Atur kolom pendapatan di Ubah Kolom"}
+              : "Kolom tagihan bulanan tidak ditemukan di CSV"}
           </div>
         </div>
 
