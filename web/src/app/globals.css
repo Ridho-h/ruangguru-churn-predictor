@@ -5,8 +5,16 @@
   --font-mono: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
+:root {
+  --bg-canvas: #f4f3ef;
+  --bg-surface: #ffffff;
+  --border-hairline: #e6e4dd;
+}
+
 body {
   font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: #18181b;
 }
 
 @layer base {
@@ -18,4 +26,28 @@ body {
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+.surface-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  box-shadow:
+    0 1px 2px rgba(24, 24, 27, 0.04),
+    0 6px 16px -4px rgba(24, 24, 27, 0.05);
+}
+
+.btn-emerald {
+  background-color: #065f46;
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 2px rgba(6, 95, 70, 0.28);
+}
+
+.btn-emerald:hover:not(:disabled) {
+  background-color: #064e3b;
+}
+
+.btn-emerald:active:not(:disabled) {
+  transform: scale(0.98);
 }
